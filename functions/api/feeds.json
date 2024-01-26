@@ -1,0 +1,15 @@
+{
+    "applegreen": "https://applegreenstores.com/fuel-prices/data.json",
+    "ascona": "https://fuelprices.asconagroup.co.uk/newfuel.json",
+    "asda": "https://storelocator.asda.com/fuel_prices_data.json",
+    "bp": "https://www.bp.com/en_gb/united-kingdom/home/fuelprices/fuel_prices_data.json",
+    "esso": "https://fuelprices.esso.co.uk/latestdata.json",
+    "morrisons": "https://www.morrisons.com/fuel-prices/fuel.json",
+    "moto": "https://moto-way.com/fuel-price/fuel_prices.json",
+    "mfg": "https://fuel.motorfuelgroup.com/fuel_prices_data.json",
+    "rontec": "https://www.rontec-servicestations.co.uk/fuel-prices/data/fuel_prices_data.json",
+    "sainsburys": "https://api.sainsburys.co.uk/v1/exports/latest/fuel_prices_data.json",
+    "sgn": "https://www.sgnretail.uk/files/data/SGN_daily_fuel_prices.json",
+    "shell": "https://www.shell.co.uk/fuel-prices-data.html",
+    "tesco": "https://www.tesco.com/fuel_prices/fuel_prices_data.json"
+}
