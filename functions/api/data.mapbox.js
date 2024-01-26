@@ -40,7 +40,7 @@ export async function onRequest(context) {
     }
     
     // Next, we save the data to KV
-    await context.env.KV.put('fueldata-mapbox', JSON.stringify(resp), {expirationTtl: 86400})
+    await context.env.KV.put('fueldata-mapbox', JSON.stringify(resp), {expirationTtl: 21600})
     
     return new Response(JSON.stringify(resp), {
         headers: {
