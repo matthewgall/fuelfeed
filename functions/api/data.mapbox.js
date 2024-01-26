@@ -1,6 +1,7 @@
 import Fuel from '../../classes/Fuel';
 
 export async function onRequest(context) {
+    let ttl = context.env.TTL || 21600;
     let obj = await context.env.KV.get("fueldata-mapbox");
     if (obj !== null) {
         return new Response(obj, {
@@ -40,7 +41,7 @@ export async function onRequest(context) {
     }
     
     // Next, we save the data to KV
-    await context.env.KV.put('fueldata-mapbox', JSON.stringify(resp), {expirationTtl: 21600})
+    await context.env.KV.put('fueldata-mapbox', JSON.stringify(resp), {expirationTtl: ttl})
     
     return new Response(JSON.stringify(resp), {
         headers: {
