@@ -7,7 +7,13 @@ export default class Fuel {
         // Now we iterate through the feeds and download them all
         for (let f of Object.keys(Feeds)) {
             let d = await fetch(Feeds[f], {
-                cf: { cacheTtlByStatus: { "200-299": 86400, 404: 1, "500-599": 0 } },
+                cf: {
+                    cacheTtlByStatus: {
+                        "200-299": 86400,
+                        404: 1,
+                        "500-599": 0
+                    }
+                },
             })
     
             d = await d.json();
