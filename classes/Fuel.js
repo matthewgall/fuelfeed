@@ -9,7 +9,7 @@ export default class Fuel {
             let d = await fetch(Feeds[f], {
                 cf: {
                     cacheTtlByStatus: {
-                        "200-299": 21600,
+                        "200-299": 1800,
                         404: 1,
                         "500-599": 0
                     }
