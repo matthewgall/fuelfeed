@@ -51,7 +51,7 @@
                 'source': 'stations',
                 'type': 'circle',
                 'paint': {
-                    'circle-radius': 6,
+                    'circle-radius': 8,
                     'circle-color': '#007cbf'
                 }
             });
@@ -61,7 +61,7 @@
             map.on('click', 'stations-layer', function (e) {
                 new maptilersdk.Popup()
                     .setLngLat(e.lngLat)
-                    .setHTML(`<strong>${e.features[0].properties.title}</strong><br />${e.features[0].properties.description}<br /><br /><strong>Updated:</strong> ${e.features[0].properties.updated}`)
+                    .setHTML(`<strong>${e.features[0].properties.title}</strong><br /><br />${e.features[0].properties.description}<br /><br /><strong>Updated:</strong> ${e.features[0].properties.updated}`)
                     .addTo(map);
             });
 
