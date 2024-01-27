@@ -36,7 +36,7 @@ export default class Fuel {
                     },
                     'location': stn.location,
                     'prices': stn.prices,
-                    'updated': data[f].last_updated
+                    'updated': d.last_updated
                 }
             }
         }
