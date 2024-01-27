@@ -35,7 +35,8 @@ export default class Fuel {
                         'postcode': stn.postcode
                     },
                     'location': stn.location,
-                    'prices': stn.prices
+                    'prices': stn.prices,
+                    'updated': data[f].last_updated
                 }
             }
         }
