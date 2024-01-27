@@ -27,7 +27,7 @@ export async function onRequest(context) {
                 let price = stn.prices[fuel]
                 if (price < 5) price = float(stn.prices[fuel] / 100);
 
-                prices.push(`<strong>${fuel}</strong> ${price}p`);
+                prices.push(`<strong>${fuel}</strong> ${price}`);
             }
             resp.features.push({
                 "type": "Feature",
