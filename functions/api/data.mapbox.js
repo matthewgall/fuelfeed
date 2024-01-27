@@ -37,7 +37,7 @@ export async function onRequest(context) {
                 },
                 "properties": {
                     "title": `${stn.address.brand}, ${stn.address.postcode}`,
-                    "description": prices.join("<br />")
+                    "description": `${prices.join("<br />")}<br /><strong>Updated:</strong> ${stn.updated}`
                 }
             });
         }
