@@ -16,7 +16,7 @@ export async function onRequest(context) {
     let d = await f.getData();
 
     // Next, we save the data to KV
-    await context.env.KV.put('fueldata-json', JSON.stringify(d), {expirationTtl: ttl})
+    // await context.env.KV.put('fueldata-json', JSON.stringify(d), {expirationTtl: ttl})
     
     return new Response(JSON.stringify(d), {
         headers: {
