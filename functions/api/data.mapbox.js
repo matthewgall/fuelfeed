@@ -24,7 +24,10 @@ export async function onRequest(context) {
             let stn = d[brand][s];
             let prices = [];
             for (let fuel of Object.keys(stn.prices)) {
-                prices.push(`<strong>${fuel}</strong> ${stn.prices[fuel]}`);
+                let price = stn.prices[fuel]
+                if (price > 5) price = stn.prices[fuel] / 100;
+
+                prices.push(`<strong>${fuel}</strong> ${price}p`);
             }
             resp.features.push({
                 "type": "Feature",
