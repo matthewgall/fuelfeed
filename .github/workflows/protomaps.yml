@@ -6,7 +6,7 @@ on:
 jobs:
   update-tiles:
     runs-on: 
-      labels: 8core-ubuntu
+      labels: ubuntu-latest
     
     steps:
       - name: Set AWS credentials
