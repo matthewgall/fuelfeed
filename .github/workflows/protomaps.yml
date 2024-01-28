@@ -1,4 +1,4 @@
-name: Upload Protomaps latest version to R2
+name: Update Protomaps
 
 on:
   workflow_dispatch:
