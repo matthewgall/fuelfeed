@@ -41,7 +41,9 @@ export default class Fuel {
                     }
                 }
             }
-            catch(e) {}
+            catch(e) {
+                console.log(`Encountered an error while fetching ${f}`)
+            }
         }
         return data
     }
