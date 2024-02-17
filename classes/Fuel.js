@@ -8,6 +8,10 @@ export default class Fuel {
         for (let f of Object.keys(Feeds)) {
             try {
                 let d = await fetch(Feeds[f], {
+                    headers: {
+                        'Accept': 'application/json',
+                        'User-Agent': 'fuelfeed.pages.dev/crawler'
+                    },
                     cf: {
                         cacheTtlByStatus: {
                             "200-299": 1800,
