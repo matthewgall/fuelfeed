@@ -5,7 +5,6 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>fuelaround.me</title>
-    <script src="//cdn.maptiler.com/maptiler-sdk-js/v1.2.0/maptiler-sdk.umd.js"></script>
     <link href="//cdn.maptiler.com/maptiler-sdk-js/v1.2.0/maptiler-sdk.css" rel="stylesheet" />
     <!-- Icons -->
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
@@ -27,63 +26,17 @@
             bottom: 0;
             width: 100%;
         }
-    </style>
-</head>
-
-<body>
-    <style>
         .mapboxgl-popup {
             max-width: 400px;
             font: 12px/20px 'Helvetica Neue', Arial, Helvetica, sans-serif;
         }
     </style>
+</head>
+
+<body>
     <div id="map"></div>
-    <script>
-        maptilersdk.config.apiKey = 'cwsqqYCkA54i9eIGaph9';
-        var map = new maptilersdk.Map({
-            container: 'map',
-            style: maptilersdk.MapStyle.STREETS,
-            geolocate: maptilersdk.GeolocationType.POINT
-        });
-
-        map.on('load', function () {
-            // Add a source for the state polygons.
-            map.addSource('stations', {
-                'type': 'geojson',
-                'data': '/api/data.mapbox'
-            });
-
-            // Add a layer showing the state polygons.
-            map.addLayer({
-                'id': 'stations-layer',
-                'source': 'stations',
-                'type': 'circle',
-                'paint': {
-                    'circle-radius': 8,
-                    'circle-color': '#007cbf'
-                }
-            });
-
-            // When a click event occurs on a feature in the states layer, open a popup at the
-            // location of the click, with description HTML from its properties.
-            map.on('click', 'stations-layer', function (e) {
-                new maptilersdk.Popup()
-                    .setLngLat(e.lngLat)
-                    .setHTML(`<strong>${e.features[0].properties.title}</strong><br /><br />${e.features[0].properties.description}<br /><br /><strong>Updated:</strong> ${e.features[0].properties.updated}`)
-                    .addTo(map);
-            });
-
-            // Change the cursor to a pointer when the mouse is over the states layer.
-            map.on('mouseenter', 'stations-layer', function () {
-                map.getCanvas().style.cursor = 'pointer';
-            });
-
-            // Change it back to a pointer when it leaves.
-            map.on('mouseleave', 'stations-layer', function () {
-                map.getCanvas().style.cursor = '';
-            });
-        });
-    </script>
+    <script src="//cdn.maptiler.com/maptiler-sdk-js/v1.2.0/maptiler-sdk.umd.js"></script>
+    <script src="/js/app.js"></script>
 </body>
 
 </html>
