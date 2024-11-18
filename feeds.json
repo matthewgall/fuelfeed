@@ -12,5 +12,5 @@
     "sainsburys": "https://api.sainsburys.co.uk/v1/exports/latest/fuel_prices_data.json",
     "sgn": "https://www.sgnretail.uk/files/data/SGN_daily_fuel_prices.json",
     "shell": "https://www.shell.co.uk/fuel-prices-data.html",
-    "tesco": "https://www.tesco.com/fuel_prices/fuel_prices_data.json"
+    "tesco": "https://corsproxy.io/?https://www.tesco.com/fuel_prices/fuel_prices_data.json"
 }
