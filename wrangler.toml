@@ -1,0 +1,24 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "fuelfeed"
+main = "src/index.ts"
+compatibility_date = "2024-10-04"
+compatibility_flags = ["nodejs_compat"]
+account_id = "b0d7b9f87b57470ef508f1a511093cae"
+
+# Workers Assets
+assets = { directory = "./public/" }
+
+# Workers Logs
+# Docs: https://developers.cloudflare.com/workers/observability/logs/workers-logs/
+# Configuration: https://developers.cloudflare.com/workers/observability/logs/workers-logs/#enable-workers-logs
+[observability]
+enabled = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "fuelfeed-prod"
+database_id = "83e482db-31ba-438b-acd0-775f85ae26ff"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "b04168dfb5ff403b90556c677f5632d1"
