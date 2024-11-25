@@ -2,6 +2,12 @@ import { AutoRouter } from 'itty-router'
 import Fuel from './fuel'
 
 const router = AutoRouter()
+const responseData = {
+    headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+    }
+}
 
 async function doSchedule(event:any, env: any) {
     // So, in this function, we're going to fetch all our data and save it to KV
@@ -13,29 +19,15 @@ async function doSchedule(event:any, env: any) {
 }
 
 router.get('/api/data.json', async (request, env, context) => {
-    let ttl: any = env.TTL || 21600;
-    let obj: any = await env.KV.get("fueldata-json");
-    if (obj !== null) {
-        return new Response(obj, {
-            headers: {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*"
-            }
-        });
+    let data: any = await env.KV.get("fueldata");
+    if (data !== null) {
+        return new Response(data, responseData);
     }
 
-    let f = new Fuel;
-    let d = await f.getData();
-
-    // Next, we save the data to KV
-    await env.KV.put('fueldata-json', JSON.stringify(d), {expirationTtl: ttl})
+    data = new Fuel;
+    data = await data.getData();
     
-    return new Response(JSON.stringify(d), {
-        headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*"
-        }
-    });
+    return new Response(JSON.stringify(data), responseData);
 })
 
 router.get('/api/data.mapbox', async (request, env, context) => {
