@@ -3,6 +3,15 @@ import Fuel from './fuel'
 
 const router = AutoRouter()
 
+async function doSchedule(event:any, env: any) {
+    // So, in this function, we're going to fetch all our data and save it to KV
+    let data: any = new Fuel;
+    data = await data.getData();
+
+    // Next, we're going to just dump it to KV (but later we will put it in D1)
+    await env.KV.put('fueldata', JSON.stringify(data))
+}
+
 router.get('/api/data.json', async (request, env, context) => {
     let ttl: any = env.TTL || 21600;
     let obj: any = await env.KV.get("fueldata-json");
@@ -85,4 +94,7 @@ router.get('/api/data.mapbox', async (request, env, context) => {
     });
 })
 
-export default router
+export default {
+    router: router.fetch,
+    scheduled: doSchedule,
+}
