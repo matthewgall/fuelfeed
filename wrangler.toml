@@ -8,6 +8,11 @@ account_id = "b0d7b9f87b57470ef508f1a511093cae"
 # Workers Assets
 assets = { directory = "./public/" }
 
+# Routing
+routes = [
+  { pattern = "*fuelaround.me/*", zone_name="fuelaround.me" }
+]
+
 # Workers Logs
 # Docs: https://developers.cloudflare.com/workers/observability/logs/workers-logs/
 # Configuration: https://developers.cloudflare.com/workers/observability/logs/workers-logs/#enable-workers-logs
