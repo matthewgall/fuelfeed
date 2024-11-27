@@ -19,36 +19,28 @@ async function doSchedule(event:any, env: any) {
 }
 
 router.get('/api/data.json', async (request, env, context) => {
-    let data: any = await env.KV.get("fueldata");
-    if (data !== null) {
-        return new Response(data, responseData);
+    let data: any = await env.KV.get("fueldata", 'json');
+    if (data == null) {
+        data = new Fuel;
+        data = await data.getData();
     }
-
-    data = new Fuel;
-    data = await data.getData();
-    
     return new Response(JSON.stringify(data), responseData);
 })
 
 router.get('/api/data.mapbox', async (request, env, context) => {
-    let ttl: any = env.TTL || 21600;
-    let obj: any = await env.KV.get("fueldata-mapbox");
-    if (obj !== null) {
-        return new Response(obj, {
-            headers: {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*"
-            }
-        });
-    }
-
-    // Otherwise, let's go fetch it
+    // First, set some data storage areas
     let resp: any = {
         "type": "FeatureCollection",
         "features": []
     };
-    let f: any = new Fuel;
-    let d: any = await f.getData();
+    let d: any = {}
+
+    // Next, we try and grab our cached data
+    d = await env.KV.get('fueldata', 'json')
+    if (d == null) {
+        d = new Fuel;
+        d = await d.getData();
+    }
 
     for (let brand of Object.keys(d)) {
         for (let s of Object.keys(d[brand])) {
@@ -74,19 +66,11 @@ router.get('/api/data.mapbox', async (request, env, context) => {
             });
         }
     }
-    
-    // Next, we save the data to KV
-    await env.KV.put('fueldata-mapbox', JSON.stringify(resp), {expirationTtl: ttl})
-    
-    return new Response(JSON.stringify(resp), {
-        headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*"
-        }
-    });
+
+    return new Response(JSON.stringify(resp), responseData);
 })
 
 export default {
-    router: router.fetch,
+    fetch: router.fetch,
     scheduled: doSchedule,
 }
