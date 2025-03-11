@@ -6,7 +6,8 @@
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
     "start": "wrangler dev",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "wrangler types",
+    "mirror": "npx node mirror.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241004.0",
