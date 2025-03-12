@@ -16,7 +16,28 @@ async function downloadLists() {
     for (let t of Object.keys(feeds)) {
         await axios.get(feeds[t], axiosConfig).then(function (resp) {
             if(resp.status == 200) {
-                // Next, we append it to our data
+                // Now, we do some iteration magic to format it correctly
+                let data = resp.data
+                for (let stn of data.stations) {
+                    try {
+                        fueldata[t][stn.site_id] = {}
+                    }
+                    catch(e) {
+                        fueldata[t] = {}
+                        fueldata[t][stn.site_id] = {}
+                    }
+        
+                    fueldata[t][stn.site_id] = {
+                        'address': {
+                            'brand': stn.brand,
+                            'address': stn.address,
+                            'postcode': stn.postcode
+                        },
+                        'location': stn.location,
+                        'prices': stn.prices,
+                        'updated': data.last_updated
+                    }
+                }
                 fueldata[t] = resp.data
             }
         }).catch(function (error) {})
