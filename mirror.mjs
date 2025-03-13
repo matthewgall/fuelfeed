@@ -38,7 +38,6 @@ async function downloadLists() {
                         'updated': data.last_updated
                     }
                 }
-                fueldata[t] = resp.data
             }
         }).catch(function (error) {})
     }
