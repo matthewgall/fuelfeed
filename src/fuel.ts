@@ -53,7 +53,7 @@ export default class Fuel {
                         // We have the data, so read it in
                         r2 = await r2.json()
                         // And set data[f] to r2[f]
-                        data[f] = r2[f]
+                        data[f] = r2[f].stations
                     }
                 }
                 catch(e) {
