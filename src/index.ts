@@ -12,7 +12,7 @@ const responseData = {
 async function doSchedule(event:any, env: any) {
     // So, in this function, we're going to fetch all our data and save it to KV
     let data: any = new Fuel;
-    data = await data.getData();
+    data = await data.getData(env);
 
     // Next, we're going to just dump it to KV (but later we will put it in D1)
     await env.KV.put('fueldata', JSON.stringify(data))
@@ -22,7 +22,7 @@ router.get('/api/data.json', async (request, env, context) => {
     let data: any = await env.KV.get("fueldata", 'json');
     if (data == null) {
         data = new Fuel;
-        data = await data.getData();
+        data = await data.getData(env);
     }
     return new Response(JSON.stringify(data), responseData);
 })
@@ -39,7 +39,7 @@ router.get('/api/data.mapbox', async (request, env, context) => {
     d = await env.KV.get('fueldata', 'json')
     if (d == null) {
         d = new Fuel;
-        d = await d.getData();
+        d = await d.getData(env);
     }
 
     for (let brand of Object.keys(d)) {

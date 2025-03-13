@@ -1,7 +1,7 @@
 import Feeds from '../feeds.json'
 
 export default class Fuel {
-    async getData() {
+    async getData(env) {
         let data: any = {}
 
         // Now we iterate through the feeds and download them all
@@ -46,7 +46,20 @@ export default class Fuel {
                 }
             }
             catch(e) {
-                console.log(`Encountered an error while fetching ${f}`)
+                // If we encountered an error, means we probably hit a block, let's grab it from R2
+                try {
+                    let r2: any = await env.R2.get('fueldata.json')
+                    if (r2 !== null) {
+                        // We have the data, so read it in
+                        r2 = await r2.json()
+                        // And set data[f] to r2[f]
+                        data[f] = r2[f]
+                    }
+                }
+                catch(e) {
+                    console.log(e);
+                    console.log(`Encountered an error while fetching ${f}`)
+                }
             }
         }
         return data
