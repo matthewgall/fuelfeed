@@ -21,8 +21,15 @@ export default class Fuel {
                     },
                 })
         
-                d = await d.json();
-        
+                if (d.status !== 200) {
+                    // If we didn't get success, we'll try to grab the latest from R2
+                    let r2: any = await env.R2.get(`${f}.json`)
+                    if (r2 !== null) d = await r2.json();
+                }
+                else {
+                    d = await d.json();
+                }
+                
                 // Now, we iterate for each station to get the prices
                 for (let stn of d.stations) {
                     try {
@@ -46,20 +53,7 @@ export default class Fuel {
                 }
             }
             catch(e) {
-                // If we encountered an error, means we probably hit a block, let's grab it from R2
-                try {
-                    let r2: any = await env.R2.get('fueldata.json')
-                    if (r2 !== null) {
-                        // We have the data, so read it in
-                        r2 = await r2.json()
-                        // And set data[f] to r2[f]
-                        data[f] = r2[f].stations
-                    }
-                }
-                catch(e) {
-                    console.log(e);
-                    console.log(`Encountered an error while fetching ${f}`)
-                }
+                console.log(`Encountered an error while fetching ${f}`)
             }
         }
         return data
