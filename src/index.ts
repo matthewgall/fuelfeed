@@ -23,6 +23,8 @@ router.get('/api/data.json', async (request, env, context) => {
     if (data == null) {
         data = new Fuel;
         data = await data.getData(env);
+        // Next, we cache it for 1 hour, but only if not run by the cron
+        await env.KV.put("fueldata", JSON.stringify(data), { expirationTtl: 3600 })
     }
     return new Response(JSON.stringify(data), responseData);
 })
@@ -40,6 +42,8 @@ router.get('/api/data.mapbox', async (request, env, context) => {
     if (d == null) {
         d = new Fuel;
         d = await d.getData(env);
+        // Cache this for 1 hour, only if it's not from the cron
+        await env.KV.put("fueldata", JSON.stringify(d), { expirationTtl: 3600 })
     }
 
     for (let brand of Object.keys(d)) {
