@@ -23,8 +23,6 @@ router.get('/api/data.json', async (request, env, context) => {
     if (data == null) {
         data = new Fuel;
         data = await data.getData(env);
-        // And cache it
-        await env.KV.put('fueldata', JSON.stringify(data));
     }
     return new Response(JSON.stringify(data), responseData);
 })
@@ -42,8 +40,6 @@ router.get('/api/data.mapbox', async (request, env, context) => {
     if (d == null) {
         d = new Fuel;
         d = await d.getData(env);
-        // And cache it
-        await env.KV.put('fueldata', JSON.stringify(d));
     }
 
     for (let brand of Object.keys(d)) {
