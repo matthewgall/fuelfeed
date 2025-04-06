@@ -9,26 +9,27 @@ export default class Fuel {
             try {
                 let d: any = null;
 
-                // First, we try and save ourselves a HTTP lookup, by using R2
-                let r2: any = await env.R2.get(`${f}.json`)
-                if (r2 !== null) d = await r2.json();
-
-                // Now, and only if we couldn't find it in R2
-                if (d === null) {
-                    d = await fetch(Feeds[f], {
-                        headers: {
-                            'Accept': 'application/json',
-                            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-                        },
-                        cf: {
-                            cacheTtlByStatus: {
-                                "200-299": 1800,
-                                404: 1,
-                                "500-599": 0
-                            }
-                        },
-                    })
-                    if (d.status == 200) d = await d.json();
+                // First, we check directly
+                d = await fetch(Feeds[f], {
+                    headers: {
+                        'Accept': 'application/json',
+                        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                    },
+                    cf: {
+                        cacheTtlByStatus: {
+                            "200-299": 1800,
+                            404: 1,
+                            "500-599": 0
+                        }
+                    },
+                })
+                if (d.status == 200) { 
+                    d = await d.json();
+                }
+                else {
+                    // We got a weird response, so we fallback to R2
+                    let r2: any = await env.R2.get(`${f}.json`)
+                    if (r2 !== null) d = await r2.json();
                 }
                 
                 // Now, we iterate for each station to get the prices
