@@ -3,9 +3,6 @@ mirror:
 	@echo Creating temporary workspace
 	@mkdir -p data
 
-	@echo Updating nodejs dependencies
-	@npm ci
-	
 	@echo Downloading data to temporary workspace
 	@npm run mirror
 
