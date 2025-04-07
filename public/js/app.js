@@ -37,7 +37,7 @@ map.on('load', function () {
     map.on('click', 'stations-layer', function (e) {
         new maptilersdk.Popup()
             .setLngLat(e.lngLat)
-            .setHTML(`<strong>${e.features[0].properties.title}</strong><br /><br />${e.features[0].properties.description}<br /><br /><strong>Updated:</strong> ${e.features[0].properties.updated}`)
+            .setHTML(`<strong>${e.features[0].properties.title}</strong><br /><br />${e.features[0].properties.description.replaceAll('B7', 'Diesel').replaceAll('E5', 'Premium Unleaded').replaceAll('E10', 'Unleaded')}<br /><br /><strong>Updated:</strong> ${e.features[0].properties.updated}`)
             .addTo(map);
     });
 
