@@ -39,6 +39,23 @@ router.get('/api/data.mapbox', async (request, env, context) => {
     };
     let d: any = {}
 
+    // Parse bounding box parameters from query string
+    const url = new URL(request.url);
+    const bbox = url.searchParams.get('bbox');
+    let bounds: { west: number, south: number, east: number, north: number } | null = null;
+
+    if (bbox) {
+        const coords = bbox.split(',').map(Number);
+        if (coords.length === 4 && coords.every(coord => !isNaN(coord))) {
+            bounds = {
+                west: coords[0],
+                south: coords[1], 
+                east: coords[2],
+                north: coords[3]
+            };
+        }
+    }
+
     // Next, we try and grab our cached data
     d = await env.KV.get('fueldata', 'json')
     if (d == null) {
@@ -51,6 +68,18 @@ router.get('/api/data.mapbox', async (request, env, context) => {
     for (let brand of Object.keys(d)) {
         for (let s of Object.keys(d[brand])) {
             let stn: any = d[brand][s];
+            
+            // Skip stations outside bounding box if bounds specified
+            if (bounds && stn.location) {
+                const lng = stn.location.longitude;
+                const lat = stn.location.latitude;
+                
+                if (lng < bounds.west || lng > bounds.east || 
+                    lat < bounds.south || lat > bounds.north) {
+                    continue;
+                }
+            }
+            
             let prices: any = [];
             for (let fuel of Object.keys(stn.prices)) {
                 let price = stn.prices[fuel];

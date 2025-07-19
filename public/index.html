@@ -30,11 +30,26 @@
             max-width: 400px;
             font: 12px/20px 'Helvetica Neue', Arial, Helvetica, sans-serif;
         }
+        
+        #loading-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-size: 14px;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            z-index: 1000;
+            display: none;
+        }
     </style>
 </head>
 
 <body>
     <div id="map"></div>
+    <div id="loading-indicator">Loading stations...</div>
     <script src="//cdn.maptiler.com/maptiler-sdk-js/v1.2.0/maptiler-sdk.umd.js"></script>
     <script src="/js/app.js"></script>
 </body>
