@@ -7,19 +7,23 @@ let feeds = Feeds;
 let axiosConfig = {
     headers: {
         'User-Agent': 'fuelaround.me/builder'
-    }
+    },
+    timeout: 5000
 }
 let fueldata = {}
 
 async function downloadLists() {
     // Next, we download all the feeds
     for (let t of Object.keys(feeds)) {
+        console.log(`Downloading ${t}...`)
         await axios.get(feeds[t], axiosConfig).then(function (resp) {
             if(resp.status == 200) {
                 // Now, we write the data to our data folder
                 fs.writeFileSync(`data/${t}.json`, JSON.stringify(resp.data));
             }
-        }).catch(function (error) {})
+        }).catch(function (error) {
+            console.log(`Error downloading ${t}: ${error.message}`)
+        })
     }
 }
 
