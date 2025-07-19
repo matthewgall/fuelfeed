@@ -4,7 +4,6 @@
     "bp": "https://www.bp.com/en_gb/united-kingdom/home/fuelprices/fuel_prices_data.json",
     "esso": "https://fuelprices.esso.co.uk/latestdata.json",
     "jet": "https://jetlocal.co.uk/fuel_prices_data.json",
-    "karan": "https://api2.krlmedia.com/integration/live_price/krl",
     "morrisons": "https://www.morrisons.com/fuel-prices/fuel.json",
     "moto": "https://moto-way.com/fuel-price/fuel_prices.json",
     "mfg": "https://fuel.motorfuelgroup.com/fuel_prices_data.json",
