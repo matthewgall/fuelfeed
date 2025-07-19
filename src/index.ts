@@ -1,5 +1,7 @@
+/// <reference path="../worker-configuration.d.ts" />
 import { AutoRouter } from 'itty-router'
 import Fuel from './fuel'
+import { PriceNormalizer } from './price-normalizer'
 
 const router = AutoRouter()
 const responseData = {
@@ -51,10 +53,8 @@ router.get('/api/data.mapbox', async (request, env, context) => {
             let stn: any = d[brand][s];
             let prices: any = [];
             for (let fuel of Object.keys(stn.prices)) {
-                let price = stn.prices[fuel]
-                if (price < 5) price = stn.prices[fuel] * 100
-
-                prices.push(`<strong>${fuel}</strong> ${price.toFixed(1)}`);
+                let price = stn.prices[fuel];
+                prices.push(PriceNormalizer.formatDisplayPrice(price, fuel));
             }
             resp.features.push({
                 "type": "Feature",
