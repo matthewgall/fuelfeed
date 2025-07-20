@@ -9,31 +9,62 @@ if ("serviceWorker" in navigator) {
 
 maptilersdk.config.apiKey = 'cwsqqYCkA54i9eIGaph9';
 
+// Version compatibility check
+if (typeof maptilersdk.version !== 'undefined') {
+    console.log('MapTiler SDK version:', maptilersdk.version);
+} else {
+    console.log('MapTiler SDK version not available');
+}
+
+// Check for required APIs
+if (!maptilersdk.Map || !maptilersdk.Popup) {
+    console.error('Required MapTiler APIs not available');
+}
+
 // Mobile detection (must be at top before map initialization)
 const isMobile = window.innerWidth <= 768; // Broader mobile detection
 const isLowEndMobile = window.innerWidth <= 480 || navigator.hardwareConcurrency <= 2;
 
-// Mobile-optimized map configuration
-var map = new maptilersdk.Map({
-    container: 'map',
-    style: maptilersdk.MapStyle.STREETS,
-    geolocate: maptilersdk.GeolocationType.POINT,
-    center: [-2.0, 53.5], // Center on UK
-    zoom: isMobile ? 7 : 6, // Start more zoomed in on mobile
-    minZoom: isMobile ? 6 : 4, // Prevent zooming out too far on mobile
-    maxZoom: isMobile ? 14 : 18, // Limit max zoom on mobile
-    // Mobile-friendly interaction options
-    touchZoomRotate: !isLowEndMobile, // Disable touch zoom on low-end devices
-    dragRotate: false, // Disable rotation for simpler mobile UX
-    touchPitch: false, // Disable pitch for simpler mobile UX
-    doubleClickZoom: false, // Prevent accidental double-tap zoom
-    scrollZoom: isMobile ? false : { around: 'center' }, // Disable scroll zoom on mobile
-    dragPan: !isLowEndMobile, // Disable drag on very low-end devices
-    keyboard: false, // Disable keyboard navigation on mobile
-    boxZoom: false, // Disable box zoom on mobile
-    trackResize: !isMobile, // Reduce resize tracking on mobile
-    renderWorldCopies: false // Don't render world copies for performance
-});
+// Mobile-optimized map configuration with v3.6.0 compatibility
+var map;
+try {
+    map = new maptilersdk.Map({
+        container: 'map',
+        style: maptilersdk.MapStyle.STREETS,
+        center: [-2.0, 53.5], // Center on UK
+        zoom: isMobile ? 7 : 6, // Start more zoomed in on mobile
+        minZoom: isMobile ? 6 : 4, // Prevent zooming out too far on mobile
+        maxZoom: isMobile ? 14 : 18, // Limit max zoom on mobile
+        // Mobile-friendly interaction options
+        touchZoomRotate: !isLowEndMobile, // Disable touch zoom on low-end devices
+        dragRotate: false, // Disable rotation for simpler mobile UX
+        touchPitch: false, // Disable pitch for simpler mobile UX
+        doubleClickZoom: false, // Prevent accidental double-tap zoom
+        scrollZoom: isMobile ? false : { around: 'center' }, // Disable scroll zoom on mobile
+        dragPan: !isLowEndMobile, // Disable drag on very low-end devices
+        keyboard: false, // Disable keyboard navigation on mobile
+        boxZoom: false, // Disable box zoom on mobile
+        trackResize: !isMobile, // Reduce resize tracking on mobile
+        renderWorldCopies: false // Don't render world copies for performance
+    });
+    
+    console.log('MapTiler map initialized successfully');
+} catch (mapError) {
+    console.error('Failed to initialize MapTiler map:', mapError);
+    
+    // Fallback: try with minimal options
+    try {
+        map = new maptilersdk.Map({
+            container: 'map',
+            style: maptilersdk.MapStyle.STREETS,
+            center: [-2.0, 53.5],
+            zoom: 6
+        });
+        console.log('Map initialized with fallback configuration');
+    } catch (fallbackError) {
+        console.error('Map initialization completely failed:', fallbackError);
+    }
+}
 
 // Debounce function to limit API calls
 function debounce(func, wait) {
