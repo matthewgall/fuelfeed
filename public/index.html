@@ -109,6 +109,41 @@
             }
         }
         
+        /* Offline status indicator */
+        #offline-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #ff6b6b;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            display: none;
+            z-index: 1001;
+            box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+        }
+        
+        #offline-indicator.online {
+            background: #51cf66;
+            color: white;
+        }
+        
+        #offline-indicator.cached-data {
+            background: #ffa726;
+            color: white;
+        }
+        
+        @media (max-width: 480px) {
+            #offline-indicator {
+                top: 15px;
+                right: 15px;
+                font-size: 11px;
+                padding: 6px 10px;
+            }
+        }
+        
         /* Touch-friendly controls */
         .mapboxgl-ctrl-group {
             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
@@ -139,6 +174,7 @@
 <body>
     <div id="map"></div>
     <div id="loading-indicator">Loading stations...</div>
+    <div id="offline-indicator">Offline</div>
     <script src="//cdn.maptiler.com/maptiler-sdk-js/v3.6.0/maptiler-sdk.umd.min.js"></script>
     <script src="/js/station-cache.js"></script>
     <script src="/js/app.js"></script>

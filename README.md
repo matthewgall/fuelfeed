@@ -17,6 +17,7 @@
 - **🎯 Smart Filtering** - Fuel type categorization (Unleaded, Diesel, Premium) with color-coded pricing
 - **🏆 Competitive Analysis** - Advanced algorithms for best price detection with tie-breaking logic
 - **📍 Viewport Persistence** - Remembers your last viewed location and returns you there on reload
+- **📱 Offline Support** - Comprehensive offline functionality with cached fuel data and map tiles
 
 ## 🚀 Quick Start
 
@@ -144,6 +145,13 @@ Super, V-Power → Premium
 - **Expiration** - Stored locations expire after 30 days
 - **Fallback** - Graceful degradation to default UK view
 
+#### **Offline Functionality**
+- **Intelligent Caching** - Multi-tier caching system with different TTL strategies
+- **Fuel Data Cache** - 6-hour cache for fuel prices with geographic indexing
+- **Map Tile Cache** - 30-day cache for MapTiler tiles with stale-while-revalidate
+- **Background Sync** - Automatic data updates when network is restored
+- **Offline Indicator** - Visual feedback for offline/cached data modes
+
 ### API Endpoints
 
 ```bash
@@ -178,6 +186,11 @@ node test/test-mirror.mjs
 # Browser console commands for viewport management
 resetViewport()        # Clear saved location and reload
 getViewportInfo()      # View stored vs current viewport
+
+# Offline cache management
+getCacheStatus()       # View cache statistics and storage usage
+clearFuelCache()       # Clear cached fuel data
+forceFuelUpdate()      # Force background fuel data update
 ```
 
 ### Data Mirroring

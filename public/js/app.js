@@ -1059,7 +1059,91 @@ document.addEventListener('visibilitychange', () => {
 
 console.log('Viewport persistence initialized');
 
-// Global functions for viewport management (useful for debugging)
+// Service Worker enhanced offline management
+class OfflineManager {
+    static async getCacheStatus() {
+        if (!navigator.serviceWorker.controller) {
+            console.warn('Service worker not available');
+            return null;
+        }
+        
+        return new Promise((resolve) => {
+            const messageChannel = new MessageChannel();
+            messageChannel.port1.onmessage = (event) => {
+                resolve(event.data);
+            };
+            
+            navigator.serviceWorker.controller.postMessage({
+                type: 'GET_CACHE_STATUS'
+            }, [messageChannel.port2]);
+        });
+    }
+    
+    static async clearFuelCache() {
+        if (!navigator.serviceWorker.controller) return false;
+        
+        return new Promise((resolve) => {
+            const messageChannel = new MessageChannel();
+            messageChannel.port1.onmessage = (event) => {
+                resolve(event.data.success);
+            };
+            
+            navigator.serviceWorker.controller.postMessage({
+                type: 'CLEAR_FUEL_CACHE'
+            }, [messageChannel.port2]);
+        });
+    }
+    
+    static async forceFuelUpdate() {
+        if (!navigator.serviceWorker.controller) return false;
+        
+        return new Promise((resolve) => {
+            const messageChannel = new MessageChannel();
+            messageChannel.port1.onmessage = (event) => {
+                resolve(event.data.success);
+            };
+            
+            navigator.serviceWorker.controller.postMessage({
+                type: 'FORCE_FUEL_UPDATE'
+            }, [messageChannel.port2]);
+        });
+    }
+    
+    static registerBackgroundSync() {
+        if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) {
+            navigator.serviceWorker.ready.then(registration => {
+                return registration.sync.register('fuel-data-sync');
+            }).catch(error => {
+                console.warn('Background sync registration failed:', error);
+            });
+        }
+    }
+}
+
+// Listen for service worker messages
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', event => {
+        const { type, timestamp } = event.data;
+        
+        switch (type) {
+            case 'FUEL_DATA_UPDATED':
+                console.log('Background fuel data update received');
+                // Refresh stations if user is online
+                if (navigator.onLine) {
+                    loadStationsInView();
+                }
+                break;
+        }
+    });
+    
+    // Register background sync on network reconnection
+    window.addEventListener('online', () => {
+        console.log('Network restored, registering background sync');
+        OfflineManager.registerBackgroundSync();
+    });
+}
+
+// Global functions for debugging and management
 window.resetViewport = () => {
     ViewportPersistence.clearViewport();
     location.reload();
@@ -1075,3 +1159,76 @@ window.getViewportInfo = () => {
     console.log('Current viewport:', current);
     return { stored, current };
 };
+
+// Offline status management
+class OfflineStatus {
+    static init() {
+        this.indicator = document.getElementById('offline-indicator');
+        this.updateStatus();
+        
+        // Listen for network changes
+        window.addEventListener('online', () => this.updateStatus());
+        window.addEventListener('offline', () => this.updateStatus());
+        
+        // Check if data is coming from cache
+        this.monitorCachedResponses();
+    }
+    
+    static updateStatus() {
+        if (!this.indicator) return;
+        
+        if (navigator.onLine) {
+            this.indicator.style.display = 'none';
+        } else {
+            this.indicator.textContent = 'Offline Mode';
+            this.indicator.className = '';
+            this.indicator.style.display = 'block';
+        }
+    }
+    
+    static showCachedDataIndicator() {
+        if (!this.indicator) return;
+        
+        this.indicator.textContent = 'Cached Data';
+        this.indicator.className = 'cached-data';
+        this.indicator.style.display = 'block';
+        
+        // Hide after 3 seconds
+        setTimeout(() => {
+            if (navigator.onLine) {
+                this.indicator.style.display = 'none';
+            }
+        }, 3000);
+    }
+    
+    static async monitorCachedResponses() {
+        // Override fetch to detect cached responses
+        const originalFetch = window.fetch;
+        window.fetch = async function(...args) {
+            try {
+                const response = await originalFetch.apply(this, args);
+                
+                // Check if response came from service worker cache
+                if (response.headers.get('X-Served-By') === 'ServiceWorker-Offline') {
+                    OfflineStatus.showCachedDataIndicator();
+                }
+                
+                return response;
+            } catch (error) {
+                throw error;
+            }
+        };
+    }
+}
+
+// Initialize offline status on DOM load
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => OfflineStatus.init());
+} else {
+    OfflineStatus.init();
+}
+
+// Offline debugging functions
+window.getCacheStatus = () => OfflineManager.getCacheStatus();
+window.clearFuelCache = () => OfflineManager.clearFuelCache();
+window.forceFuelUpdate = () => OfflineManager.forceFuelUpdate();
