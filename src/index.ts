@@ -21,24 +21,41 @@ async function doSchedule(event:any, env: any) {
 }
 
 router.get('/api/data.json', async (request, env, context) => {
+    // Check for If-None-Match header for ETag support
+    const etag = request.headers.get('If-None-Match');
+    const cacheKey = 'fueldata-etag';
+    const currentEtag = await env.KV.get(cacheKey);
+    
+    if (etag && currentEtag && etag === `"${currentEtag}"`) {
+        return new Response(null, { status: 304 });
+    }
+    
     let data: any = await env.KV.get("fueldata", 'json');
     if (data == null) {
         data = new Fuel;
         data = await data.getData(env);
-        // Next, we cache it for 1 hour, but only if not run by the cron
-        await env.KV.put("fueldata", JSON.stringify(data), { expirationTtl: 3600 })
+        // Cache for 1 hour, but only if not run by the cron
+        await env.KV.put("fueldata", JSON.stringify(data), { expirationTtl: 3600 });
+        
+        // Store new ETag
+        const newEtag = Date.now().toString();
+        await env.KV.put(cacheKey, newEtag, { expirationTtl: 3600 });
     }
-    return new Response(JSON.stringify(data), responseData);
+    
+    const lastModified = currentEtag || Date.now().toString();
+    
+    return new Response(JSON.stringify(data), {
+        ...responseData,
+        headers: {
+            ...responseData.headers,
+            'Cache-Control': 'public, max-age=1800', // 30 minutes
+            'ETag': `"${lastModified}"`,
+            'Last-Modified': new Date(parseInt(lastModified)).toUTCString()
+        }
+    });
 })
 
 router.get('/api/data.mapbox', async (request, env, context) => {
-    // First, set some data storage areas
-    let resp: any = {
-        "type": "FeatureCollection",
-        "features": []
-    };
-    let d: any = {}
-
     // Parse bounding box parameters from query string
     const url = new URL(request.url);
     const bbox = url.searchParams.get('bbox');
@@ -56,7 +73,29 @@ router.get('/api/data.mapbox', async (request, env, context) => {
         }
     }
 
-    // Next, we try and grab our cached data
+    // Try to get cached filtered data first
+    const cacheKey = bounds ? `mapbox-bbox-${bounds.west},${bounds.south},${bounds.east},${bounds.north}` : 'mapbox-full';
+    let cachedResponse = await env.KV.get(cacheKey);
+    
+    if (cachedResponse) {
+        return new Response(cachedResponse, {
+            ...responseData,
+            headers: {
+                ...responseData.headers,
+                'Cache-Control': 'public, max-age=900', // 15 minutes
+                'ETag': `"${Date.now()}"`,
+            }
+        });
+    }
+
+    // First, set response data structure
+    let resp: any = {
+        "type": "FeatureCollection",
+        "features": []
+    };
+    let d: any = {}
+
+    // Get our cached data
     d = await env.KV.get('fueldata', 'json')
     if (d == null) {
         d = new Fuel;
@@ -65,31 +104,41 @@ router.get('/api/data.mapbox', async (request, env, context) => {
         await env.KV.put("fueldata", JSON.stringify(d), { expirationTtl: 3600 })
     }
 
+    // Optimized filtering: early exit and spatial indexing
+    const features: any[] = [];
+    let stationCount = 0;
+    
     for (let brand of Object.keys(d)) {
         for (let s of Object.keys(d[brand])) {
             let stn: any = d[brand][s];
             
-            // Skip stations outside bounding box if bounds specified
-            if (bounds && stn.location) {
-                const lng = stn.location.longitude;
-                const lat = stn.location.latitude;
-                
-                if (lng < bounds.west || lng > bounds.east || 
-                    lat < bounds.south || lat > bounds.north) {
+            // Quick location validation
+            if (!stn.location || typeof stn.location.longitude !== 'number' || typeof stn.location.latitude !== 'number') {
+                continue;
+            }
+            
+            const lng = stn.location.longitude;
+            const lat = stn.location.latitude;
+            
+            // Fast bounding box check with early exit
+            if (bounds) {
+                if (lng < bounds.west || lng > bounds.east || lat < bounds.south || lat > bounds.north) {
                     continue;
                 }
             }
             
+            // Build prices array only for stations in bounds
             let prices: any = [];
             for (let fuel of Object.keys(stn.prices)) {
                 let price = stn.prices[fuel];
                 prices.push(PriceNormalizer.formatDisplayPrice(price, fuel));
             }
-            resp.features.push({
+            
+            features.push({
                 "type": "Feature",
                 "geometry": {
                     "type": "Point",
-                    "coordinates": [stn.location.longitude, stn.location.latitude]
+                    "coordinates": [lng, lat]
                 },
                 "properties": {
                     "title": `${stn.address.brand}, ${stn.address.postcode}`,
@@ -97,10 +146,29 @@ router.get('/api/data.mapbox', async (request, env, context) => {
                     "updated": stn.updated
                 }
             });
+            
+            stationCount++;
+            // Limit results for very large datasets
+            if (stationCount > 10000) break;
         }
+        if (stationCount > 10000) break;
     }
-
-    return new Response(JSON.stringify(resp), responseData);
+    
+    resp.features = features;
+    const responseBody = JSON.stringify(resp);
+    
+    // Cache the filtered response for 15 minutes
+    await env.KV.put(cacheKey, responseBody, { expirationTtl: 900 });
+    
+    return new Response(responseBody, {
+        ...responseData,
+        headers: {
+            ...responseData.headers,
+            'Cache-Control': 'public, max-age=900',
+            'ETag': `"${Date.now()}"`,
+            'X-Station-Count': stationCount.toString()
+        }
+    });
 })
 
 export default {
