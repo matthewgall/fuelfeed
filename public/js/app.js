@@ -138,9 +138,12 @@ map.on('load', function () {
                 12, 10,
                 16, 14
             ],
-            // Color based on price (if available) - prices are in pounds
+            // Color based on price with special highlighting for best prices
             'circle-color': [
                 'case',
+                // Highlight stations with best prices in gold
+                ['get', 'is_best_price'], '#FFD700', // Gold for best price stations
+                // Regular price-based coloring
                 ['has', 'lowest_price'],
                 [
                     'interpolate',
@@ -152,9 +155,21 @@ map.on('load', function () {
                 ],
                 '#007cbf' // Default blue if no price data
             ],
-            'circle-stroke-width': 2,
-            'circle-stroke-color': '#ffffff',
-            'circle-opacity': 0.8,
+            'circle-stroke-width': [
+                'case',
+                ['get', 'is_best_price'], 4, // Thicker stroke for best price stations
+                2 // Normal stroke for others
+            ],
+            'circle-stroke-color': [
+                'case',
+                ['get', 'is_best_price'], '#FF6B35', // Orange stroke for best price stations
+                '#ffffff' // White stroke for others
+            ],
+            'circle-opacity': [
+                'case',
+                ['get', 'is_best_price'], 1.0, // Full opacity for best price stations
+                0.8 // Normal opacity for others
+            ],
             'circle-stroke-opacity': 1
         }
     });
@@ -246,13 +261,14 @@ map.on('load', function () {
         
         const content = `
             <div style="max-width: ${isMobile ? '300px' : '340px'}; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
-                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; margin: -15px -15px 15px -15px; border-radius: 8px 8px 0 0;">
+                <div style="background: ${props.is_best_price ? 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'}; color: ${props.is_best_price ? '#333' : 'white'}; padding: 15px; margin: -15px -15px 15px -15px; border-radius: 8px 8px 0 0;">
                     <h3 style="margin: 0; font-size: ${isMobile ? '18px' : '16px'}; font-weight: 600;">
-                        ${brand}
+                        ${props.is_best_price ? '🏆 ' : ''}${brand}
                     </h3>
                     <div style="font-size: ${isMobile ? '14px' : '12px'}; opacity: 0.9; margin-top: 4px;">
                         📍 ${location}
                     </div>
+                    ${props.is_best_price ? `<div style="font-size: ${isMobile ? '13px' : '11px'}; margin-top: 8px; font-weight: 600; opacity: 0.9;">⭐ Best price for: ${(props.best_fuel_types || []).join(', ')}</div>` : ''}
                 </div>
                 
                 <div style="margin-bottom: 15px;">

@@ -130,10 +130,10 @@ router.get('/api/data.mapbox', async (request, env, context) => {
         await env.KV.put("fueldata", JSON.stringify(d), { expirationTtl: CACHE_TTL.BASE_DATA })
     }
 
-    // Stream-optimized filtering with early exit
-    const features: any[] = [];
+    // First pass: collect all valid stations with price data
+    const validStations: any[] = [];
     let stationCount = 0;
-    const maxStations = bounds ? 5000 : 10000; // Lower limit for bbox requests
+    const maxStations = bounds ? 5000 : 10000;
     
     for (let brand of Object.keys(d)) {
         for (let s of Object.keys(d[brand])) {
@@ -153,42 +153,111 @@ router.get('/api/data.mapbox', async (request, env, context) => {
                 continue;
             }
             
-            // Build prices efficiently and calculate lowest price for color coding
+            // Process price data
             let prices: any = [];
             let numericPrices: number[] = [];
+            let fuelPrices: { [key: string]: number } = {};
             
             for (let fuel of Object.keys(stn.prices)) {
                 let price = stn.prices[fuel];
                 prices.push(PriceNormalizer.formatDisplayPrice(price, fuel));
                 
-                // Extract numeric price for color coding (convert pence to pounds if needed)
                 if (typeof price === 'number') {
                     const priceInPounds = price > 10 ? price / 100 : price;
                     numericPrices.push(priceInPounds);
+                    fuelPrices[fuel] = priceInPounds;
                 }
             }
             
-            // Find lowest price for color coding
             const lowestPrice = numericPrices.length > 0 ? Math.min(...numericPrices) : null;
+            const averagePrice = numericPrices.length > 0 ? 
+                numericPrices.reduce((a, b) => a + b, 0) / numericPrices.length : null;
             
-            features.push({
-                "type": "Feature",
-                "geometry": {
-                    "type": "Point",
-                    "coordinates": [lng, lat]
-                },
-                "properties": {
-                    "title": `${stn.address.brand}, ${stn.address.postcode}`,
-                    "description": prices.join("<br />"),
-                    "updated": stn.updated,
-                    "brand": stn.address.brand,
-                    "lowest_price": lowestPrice
-                }
+            validStations.push({
+                stn,
+                lng,
+                lat,
+                prices,
+                lowestPrice,
+                averagePrice,
+                fuelPrices
             });
             
             stationCount++;
         }
         if (stationCount >= maxStations) break;
+    }
+    
+    // Second pass: find best prices for each fuel type
+    const fuelTypes = new Set<string>();
+    validStations.forEach(station => {
+        Object.keys(station.fuelPrices).forEach(fuel => fuelTypes.add(fuel));
+    });
+    
+    const bestPrices: { [key: string]: { price: number, stations: any[] } } = {};
+    
+    // Find lowest price for each fuel type
+    for (const fuel of fuelTypes) {
+        const stationsWithFuel = validStations.filter(station => 
+            station.fuelPrices[fuel] !== undefined
+        );
+        
+        if (stationsWithFuel.length > 0) {
+            const minPrice = Math.min(...stationsWithFuel.map(s => s.fuelPrices[fuel]));
+            const bestStations = stationsWithFuel.filter(s => s.fuelPrices[fuel] === minPrice);
+            
+            bestPrices[fuel] = {
+                price: minPrice,
+                stations: bestStations
+            };
+        }
+    }
+    
+    // Third pass: create features with highlighting flags
+    const features: any[] = [];
+    
+    for (const station of validStations) {
+        let isBestPrice = false;
+        let bestFuelTypes: string[] = [];
+        
+        // Check if this station has the best price for any fuel type
+        for (const [fuel, bestData] of Object.entries(bestPrices)) {
+            if (station.fuelPrices[fuel] === bestData.price) {
+                if (bestData.stations.length === 1) {
+                    // Single best station for this fuel
+                    isBestPrice = true;
+                    bestFuelTypes.push(fuel);
+                } else {
+                    // Multiple stations with same price - check average price
+                    const bestByAverage = bestData.stations.reduce((best, current) => 
+                        (current.averagePrice || Infinity) < (best.averagePrice || Infinity) ? current : best
+                    );
+                    
+                    if (station === bestByAverage) {
+                        isBestPrice = true;
+                        bestFuelTypes.push(fuel);
+                    }
+                }
+            }
+        }
+        
+        features.push({
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [station.lng, station.lat]
+            },
+            "properties": {
+                "title": `${station.stn.address.brand}, ${station.stn.address.postcode}`,
+                "description": station.prices.join("<br />"),
+                "updated": station.stn.updated,
+                "brand": station.stn.address.brand,
+                "lowest_price": station.lowestPrice,
+                "average_price": station.averagePrice,
+                "is_best_price": isBestPrice,
+                "best_fuel_types": bestFuelTypes
+            }
+        });
     }
     
     const resp = {
