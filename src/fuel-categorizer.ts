@@ -19,7 +19,7 @@ export class FuelCategorizer {
             name: 'diesel',
             displayName: 'Diesel',
             types: ['B7', 'diesel', 'gasoil'],
-            icon: '🚛'
+            icon: '⚫'
         },
         {
             name: 'premium',

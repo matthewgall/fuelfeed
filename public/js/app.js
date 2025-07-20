@@ -458,7 +458,7 @@ map.on('load', function () {
                     const price = prices[i];
                     if (price && price.trim()) {
                         // Simple matching for mobile
-                        const match = price.match(/([⛽🚛💎])\s+([^£]+)£([\d.]+)/);
+                        const match = price.match(/([⛽⚫💎])\s+([^£]+)£([\d.]+)/);
                         if (match) {
                             const icon = match[1];
                             const fuel = match[2].trim().replace(/\([^)]*\)/g, '').trim();
