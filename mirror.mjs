@@ -149,7 +149,7 @@ async function downloadLists() {
     console.log(`   ✅ Successful: ${stats.success}`);
     console.log(`   ❌ Failed: ${stats.failed}`);
     console.log(`   🔄 Retries: ${stats.retries}`);
-    console.log(`   ⏱️  Duration: ${duration.toFixed(1)}s`);
+    console.log(`   ⏱️ Duration: ${duration.toFixed(1)}s`);
     console.log(`   📈 Success rate: ${((stats.success / stats.total) * 100).toFixed(1)}%`);
     
     if (stats.failed > 0) {
