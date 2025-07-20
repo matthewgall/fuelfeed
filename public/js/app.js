@@ -138,7 +138,7 @@ map.on('load', function () {
                 12, 10,
                 16, 14
             ],
-            // Color based on price (if available)
+            // Color based on price (if available) - prices are in pounds
             'circle-color': [
                 'case',
                 ['has', 'lowest_price'],
@@ -146,9 +146,9 @@ map.on('load', function () {
                     'interpolate',
                     ['linear'],
                     ['get', 'lowest_price'],
-                    130, '#00C851', // Green for low prices
-                    140, '#ffbb33', // Amber for medium prices  
-                    150, '#FF4444'  // Red for high prices
+                    1.30, '#00C851', // Green for low prices (£1.30)
+                    1.40, '#ffbb33', // Amber for medium prices (£1.40)
+                    1.50, '#FF4444'  // Red for high prices (£1.50)
                 ],
                 '#007cbf' // Default blue if no price data
             ],
