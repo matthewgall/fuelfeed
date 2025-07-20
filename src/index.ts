@@ -2,6 +2,8 @@
 import { AutoRouter } from 'itty-router'
 import Fuel from './fuel'
 import { PriceNormalizer } from './price-normalizer'
+import { CacheManager } from './cache-manager'
+import { CacheInvalidator } from './cache-invalidator'
 
 const router = AutoRouter()
 const responseData = {
@@ -12,21 +14,50 @@ const responseData = {
 }
 
 async function doSchedule(event:any, env: any) {
-    // So, in this function, we're going to fetch all our data and save it to KV
+    // Smart cache invalidation before update
+    const invalidationResult = await CacheInvalidator.smartInvalidation(env, 'scheduled-update');
+    console.log(`Cache invalidation: ${invalidationResult.reason} (${invalidationResult.deleted} entries)`);
+    
+    // Fetch all our data and save it to KV
     let data: any = new Fuel;
     data = await data.getData(env);
 
-    // Next, we're going to just dump it to KV (but later we will put it in D1)
+    // Store main data
     await env.KV.put('fueldata', JSON.stringify(data))
+    
+    // Update cache timestamp for smart invalidation
+    await env.KV.put('fueldata-updated', Date.now().toString(), { expirationTtl: 86400 });
+    
+    // Warm cache for popular regions
+    const cacheManager = new CacheManager();
+    await cacheManager.warmPopularRegions(env, data);
+    
+    // Clean up stale cache entries
+    const cleanupResult = await CacheInvalidator.smartInvalidation(env, 'cleanup');
+    console.log(`Cache cleanup: ${cleanupResult.reason} (${cleanupResult.deleted} entries)`);
+    
+    console.log('Scheduled update completed with cache warming and cleanup');
 }
 
 router.get('/api/data.json', async (request, env, context) => {
+    const cacheManager = new CacheManager({
+        defaultTtl: 1800,
+        compressResponse: true,
+        enableEdgeCache: true
+    });
+    
+    // Check for cached compressed response first
+    const cacheKey = cacheManager.generateCacheKey('json');
+    const cachedResponse = await cacheManager.getCachedResponse(cacheKey, env);
+    if (cachedResponse) {
+        return cachedResponse;
+    }
+    
     // Check for If-None-Match header for ETag support
     const etag = request.headers.get('If-None-Match');
-    const cacheKey = 'fueldata-etag';
-    const currentEtag = await env.KV.get(cacheKey);
+    const lastUpdated = await env.KV.get('fueldata-updated');
     
-    if (etag && currentEtag && etag === `"${currentEtag}"`) {
+    if (etag && lastUpdated && etag === `"${lastUpdated}"`) {
         return new Response(null, { status: 304 });
     }
     
@@ -34,29 +65,29 @@ router.get('/api/data.json', async (request, env, context) => {
     if (data == null) {
         data = new Fuel;
         data = await data.getData(env);
-        // Cache for 1 hour, but only if not run by the cron
         await env.KV.put("fueldata", JSON.stringify(data), { expirationTtl: 3600 });
-        
-        // Store new ETag
-        const newEtag = Date.now().toString();
-        await env.KV.put(cacheKey, newEtag, { expirationTtl: 3600 });
+        await env.KV.put('fueldata-updated', Date.now().toString(), { expirationTtl: 86400 });
     }
     
-    const lastModified = currentEtag || Date.now().toString();
+    // Store in compressed cache and return
+    await cacheManager.storeResponse(cacheKey, data, env, 1800);
     
-    return new Response(JSON.stringify(data), {
-        ...responseData,
-        headers: {
-            ...responseData.headers,
-            'Cache-Control': 'public, max-age=1800', // 30 minutes
-            'ETag': `"${lastModified}"`,
-            'Last-Modified': new Date(parseInt(lastModified)).toUTCString()
-        }
-    });
+    const headers = {
+        ...responseData.headers,
+        ...cacheManager.createCacheHeaders(lastUpdated || Date.now().toString(), 1800)
+    };
+    
+    return new Response(JSON.stringify(data), { headers });
 })
 
 router.get('/api/data.mapbox', async (request, env, context) => {
-    // Parse bounding box parameters from query string
+    const cacheManager = new CacheManager({
+        defaultTtl: 900,
+        compressResponse: true,
+        enableEdgeCache: true
+    });
+    
+    // Parse bounding box parameters
     const url = new URL(request.url);
     const bbox = url.searchParams.get('bbox');
     let bounds: { west: number, south: number, east: number, north: number } | null = null;
@@ -73,46 +104,33 @@ router.get('/api/data.mapbox', async (request, env, context) => {
         }
     }
 
-    // Try to get cached filtered data first
-    const cacheKey = bounds ? `mapbox-bbox-${bounds.west},${bounds.south},${bounds.east},${bounds.north}` : 'mapbox-full';
-    let cachedResponse = await env.KV.get(cacheKey);
-    
+    // Try to get cached compressed response first
+    const cacheKey = cacheManager.generateCacheKey('mapbox', bounds);
+    const cachedResponse = await cacheManager.getCachedResponse(cacheKey, env);
     if (cachedResponse) {
-        return new Response(cachedResponse, {
-            ...responseData,
-            headers: {
-                ...responseData.headers,
-                'Cache-Control': 'public, max-age=900', // 15 minutes
-                'ETag': `"${Date.now()}"`,
-            }
-        });
+        return cachedResponse;
     }
 
-    // First, set response data structure
-    let resp: any = {
-        "type": "FeatureCollection",
-        "features": []
-    };
-    let d: any = {}
-
-    // Get our cached data
-    d = await env.KV.get('fueldata', 'json')
+    // Get source data
+    let d: any = await env.KV.get('fueldata', 'json')
     if (d == null) {
         d = new Fuel;
         d = await d.getData(env);
-        // Cache this for 1 hour, only if it's not from the cron
         await env.KV.put("fueldata", JSON.stringify(d), { expirationTtl: 3600 })
     }
 
-    // Optimized filtering: early exit and spatial indexing
+    // Stream-optimized filtering with early exit
     const features: any[] = [];
     let stationCount = 0;
+    const maxStations = bounds ? 5000 : 10000; // Lower limit for bbox requests
     
     for (let brand of Object.keys(d)) {
         for (let s of Object.keys(d[brand])) {
+            if (stationCount >= maxStations) break;
+            
             let stn: any = d[brand][s];
             
-            // Quick location validation
+            // Quick validation and bounds check
             if (!stn.location || typeof stn.location.longitude !== 'number' || typeof stn.location.latitude !== 'number') {
                 continue;
             }
@@ -120,14 +138,11 @@ router.get('/api/data.mapbox', async (request, env, context) => {
             const lng = stn.location.longitude;
             const lat = stn.location.latitude;
             
-            // Fast bounding box check with early exit
-            if (bounds) {
-                if (lng < bounds.west || lng > bounds.east || lat < bounds.south || lat > bounds.north) {
-                    continue;
-                }
+            if (bounds && (lng < bounds.west || lng > bounds.east || lat < bounds.south || lat > bounds.north)) {
+                continue;
             }
             
-            // Build prices array only for stations in bounds
+            // Build prices efficiently
             let prices: any = [];
             for (let fuel of Object.keys(stn.prices)) {
                 let price = stn.prices[fuel];
@@ -148,28 +163,37 @@ router.get('/api/data.mapbox', async (request, env, context) => {
             });
             
             stationCount++;
-            // Limit results for very large datasets
-            if (stationCount > 10000) break;
         }
-        if (stationCount > 10000) break;
+        if (stationCount >= maxStations) break;
     }
     
-    resp.features = features;
-    const responseBody = JSON.stringify(resp);
+    const resp = {
+        "type": "FeatureCollection",
+        "features": features
+    };
     
-    // Cache the filtered response for 15 minutes
-    await env.KV.put(cacheKey, responseBody, { expirationTtl: 900 });
+    // Store in compressed cache
+    await cacheManager.storeResponse(cacheKey, resp, env, 900);
     
-    return new Response(responseBody, {
-        ...responseData,
-        headers: {
-            ...responseData.headers,
-            'Cache-Control': 'public, max-age=900',
-            'ETag': `"${Date.now()}"`,
-            'X-Station-Count': stationCount.toString()
-        }
-    });
+    const headers = {
+        ...responseData.headers,
+        ...cacheManager.createCacheHeaders(Date.now().toString(), 900),
+        'X-Station-Count': stationCount.toString(),
+        'X-Cache-Key': cacheKey
+    };
+    
+    return new Response(JSON.stringify(resp), { headers });
 })
+
+// Cache management endpoint
+router.get('/api/cache/stats', async (request, env, context) => {
+    const stats = await CacheInvalidator.getCacheStats(env);
+    return new Response(JSON.stringify({
+        ...stats,
+        timestamp: new Date().toISOString()
+    }), responseData);
+})
+
 
 export default {
     fetch: router.fetch,
