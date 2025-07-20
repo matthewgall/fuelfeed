@@ -27,25 +27,31 @@ function debounce(func, wait) {
     };
 }
 
-// Function to get current map bounds as bbox parameter
-function getMapBounds() {
-    const bounds = map.getBounds();
-    return `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
-}
-
-// Cache to avoid redundant API calls for the same area
-let lastBounds = null;
+// Initialize advanced caching system
+const stationCache = new StationCache();
 let currentRequest = null;
 
-// Function to load stations for current viewport
+// Function to get current map bounds as object
+function getMapBounds() {
+    const bounds = map.getBounds();
+    return {
+        west: bounds.getWest(),
+        south: bounds.getSouth(),
+        east: bounds.getEast(),
+        north: bounds.getNorth()
+    };
+}
+
+// Function to load stations for current viewport with intelligent caching
 function loadStationsInView() {
-    const bbox = getMapBounds();
+    const bounds = getMapBounds();
     
-    // Skip if bounds haven't changed significantly (within 0.001 degrees)
-    if (lastBounds && Math.abs(parseFloat(bbox.split(',')[0]) - lastBounds.west) < 0.001 &&
-        Math.abs(parseFloat(bbox.split(',')[1]) - lastBounds.south) < 0.001 &&
-        Math.abs(parseFloat(bbox.split(',')[2]) - lastBounds.east) < 0.001 &&
-        Math.abs(parseFloat(bbox.split(',')[3]) - lastBounds.north) < 0.001) {
+    // Check if we have all required data cached
+    if (stationCache.hasValidData(bounds)) {
+        console.log('Loading stations from cache');
+        const cachedData = stationCache.getStations(bounds);
+        map.getSource('stations').setData(cachedData);
+        console.log(`Loaded ${cachedData.features.length} stations from cache`);
         return;
     }
     
@@ -54,8 +60,10 @@ function loadStationsInView() {
         currentRequest.abort();
     }
     
+    // Create bbox parameter for API
+    const bbox = `${bounds.west},${bounds.south},${bounds.east},${bounds.north}`;
     const url = `/api/data.mapbox?bbox=${bbox}`;
-    console.log('Loading stations for bounds:', bbox);
+    console.log('Fetching stations from API for bounds:', bbox);
     
     // Show loading indicator
     const loadingIndicator = document.getElementById('loading-indicator');
@@ -72,16 +80,10 @@ function loadStationsInView() {
             // Update the data source with new data
             map.getSource('stations').setData(data);
             
-            // Cache the current bounds
-            const coords = bbox.split(',').map(Number);
-            lastBounds = {
-                west: coords[0],
-                south: coords[1],
-                east: coords[2], 
-                north: coords[3]
-            };
+            // Store in cache for future use
+            stationCache.storeStations(bounds, data);
             
-            console.log(`Loaded ${data.features.length} stations`);
+            console.log(`Loaded ${data.features.length} stations from API`);
             
             // Hide loading indicator
             loadingIndicator.style.display = 'none';
@@ -128,6 +130,11 @@ map.on('load', function () {
     // Reload data when map moves (debounced)
     map.on('moveend', debouncedLoadStations);
     map.on('zoomend', debouncedLoadStations);
+    
+    // Periodically clean up expired cache entries (every 5 minutes)
+    setInterval(() => {
+        stationCache.clearExpired();
+    }, 5 * 60 * 1000);
 
     // When a click event occurs on a feature in the stations layer, open a popup
     map.on('click', 'stations-layer', function (e) {
@@ -147,3 +154,27 @@ map.on('load', function () {
         map.getCanvas().style.cursor = '';
     });
 });
+
+// Global functions for cache management (useful for debugging)
+window.cacheStats = () => {
+    const stats = stationCache.getStats();
+    console.table(stats);
+    return stats;
+};
+
+window.clearCache = () => {
+    stationCache.clear();
+    console.log('Cache cleared manually');
+};
+
+window.refreshStations = () => {
+    stationCache.clear();
+    loadStationsInView();
+    console.log('Stations refreshed');
+};
+
+// Log cache stats on page load for debugging
+setTimeout(() => {
+    const stats = stationCache.getStats();
+    console.log('Cache initialized:', stats);
+}, 1000);
