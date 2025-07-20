@@ -677,18 +677,6 @@ map.on('load', function () {
             
             console.log('Using coordinates for popup:', coordinates);
             
-            // Quick test: create a simple popup to verify coordinates work
-            try {
-                const testPopup = new maptilersdk.Popup()
-                    .setLngLat(coordinates)
-                    .setHTML('<div>TEST</div>')
-                    .addTo(map);
-                setTimeout(() => testPopup.remove(), 1000); // Remove after 1 second
-                console.log('Test popup created successfully at:', coordinates);
-            } catch (testError) {
-                console.error('Test popup failed:', testError);
-            }
-            
             // Safe price parsing with error handling
             const titleParts = (props.title || 'Station').split(', ');
             const brand = titleParts[0] || 'Station';
@@ -809,11 +797,7 @@ map.on('load', function () {
                 const popup = new maptilersdk.Popup({
                     closeButton: true,
                     closeOnClick: true,
-                    closeOnMove: false,
-                    maxWidth: '350px',
-                    anchor: 'auto',
-                    offset: 15,
-                    className: 'fuel-station-popup'
+                    maxWidth: '350px'
                 });
                 
                 // Verify popup object is valid
@@ -830,19 +814,10 @@ map.on('load', function () {
                 console.log('Map object:', map);
                 console.log('Popup object:', popup);
                 
-                // Try different coordinate setting approaches for v3.6.0
-                try {
-                    // Method 1: Direct coordinates
-                    popup.setLngLat([coordinates.lng, coordinates.lat]);
-                    popup.setHTML(content);
-                    popup.addTo(map);
-                } catch (arrayError) {
-                    console.warn('Array coordinates failed, trying object:', arrayError);
-                    // Method 2: Object coordinates
-                    popup.setLngLat(coordinates);
-                    popup.setHTML(content);
-                    popup.addTo(map);
-                }
+                // Use the same approach that works for the test popup
+                popup.setLngLat(coordinates);
+                popup.setHTML(content);
+                popup.addTo(map);
                 
                 // Track the active popup
                 activePopup = popup;
