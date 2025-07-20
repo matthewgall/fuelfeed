@@ -579,6 +579,10 @@ map.on('load', function () {
 
     // Mobile-optimized popup for station info with improved state management
     map.on('click', 'stations-layer', function (e) {
+        console.log('Station clicked, event:', e);
+        console.log('Event lngLat:', e.lngLat);
+        console.log('Event features:', e.features);
+        
         // Track popup clicks and force cleanup periodically
         popupClickCount++;
         
@@ -586,11 +590,13 @@ map.on('load', function () {
         if (popupClickCount % 4 === 0) {
             console.log('Performing periodic popup cleanup');
             cleanupAllPopups();
-            // Brief pause to let cleanup complete, but preserve the event data
+            // Brief pause to let cleanup complete, but copy all event data deeply
             const eventData = {
-                features: e.features,
-                lngLat: e.lngLat
+                features: e.features ? [...e.features] : [],
+                lngLat: e.lngLat ? { lng: e.lngLat.lng, lat: e.lngLat.lat } : null,
+                point: e.point ? { x: e.point.x, y: e.point.y } : null
             };
+            console.log('Preserved event data:', eventData);
             setTimeout(() => {
                 handlePopupClick(eventData);
             }, 50);
@@ -670,6 +676,18 @@ map.on('load', function () {
             }
             
             console.log('Using coordinates for popup:', coordinates);
+            
+            // Quick test: create a simple popup to verify coordinates work
+            try {
+                const testPopup = new maptilersdk.Popup()
+                    .setLngLat(coordinates)
+                    .setHTML('<div>TEST</div>')
+                    .addTo(map);
+                setTimeout(() => testPopup.remove(), 1000); // Remove after 1 second
+                console.log('Test popup created successfully at:', coordinates);
+            } catch (testError) {
+                console.error('Test popup failed:', testError);
+            }
             
             // Safe price parsing with error handling
             const titleParts = (props.title || 'Station').split(', ');
@@ -809,11 +827,22 @@ map.on('load', function () {
                 }
                 
                 console.log('Setting popup coordinates:', coordinates);
+                console.log('Map object:', map);
+                console.log('Popup object:', popup);
                 
-                // Set up popup with careful error handling
-                popup.setLngLat(coordinates);
-                popup.setHTML(content);
-                popup.addTo(map);
+                // Try different coordinate setting approaches for v3.6.0
+                try {
+                    // Method 1: Direct coordinates
+                    popup.setLngLat([coordinates.lng, coordinates.lat]);
+                    popup.setHTML(content);
+                    popup.addTo(map);
+                } catch (arrayError) {
+                    console.warn('Array coordinates failed, trying object:', arrayError);
+                    // Method 2: Object coordinates
+                    popup.setLngLat(coordinates);
+                    popup.setHTML(content);
+                    popup.addTo(map);
+                }
                 
                 // Track the active popup
                 activePopup = popup;
