@@ -623,9 +623,32 @@ map.on('load', function () {
                                     else color = '#FF4444';
                                     
                                     priceItems.push(`
-                                        <div style="display: flex; justify-content: space-between; margin: 3px 0;">
-                                            <span style="font-size: 12px;">${icon} ${fuel}</span>
-                                            <span style="color: ${color}; font-weight: bold; font-size: 12px;">£${priceVal.toFixed(2)}</span>
+                                        <div style="
+                                            display: flex; 
+                                            justify-content: space-between; 
+                                            align-items: center;
+                                            padding: 6px 0; 
+                                            border-bottom: 1px solid #f0f0f0;
+                                            margin: 0;
+                                        ">
+                                            <span style="
+                                                font-size: 13px; 
+                                                color: #555;
+                                                font-weight: 500;
+                                                display: flex;
+                                                align-items: center;
+                                            ">
+                                                <span style="margin-right: 8px; font-size: 14px;">${icon}</span>
+                                                ${fuel}
+                                            </span>
+                                            <span style="
+                                                color: ${color}; 
+                                                font-weight: bold; 
+                                                font-size: 14px;
+                                                background: ${color}15;
+                                                padding: 2px 8px;
+                                                border-radius: 12px;
+                                            ">£${priceVal.toFixed(2)}</span>
                                         </div>
                                     `);
                                 }
@@ -640,23 +663,59 @@ map.on('load', function () {
             }
             
             const content = `
-                <div style="max-width: 300px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 10px;">
-                    <h3 style="margin: 0 0 6px 0; font-size: 14px; color: #333;">
-                        ${props.is_best_price ? '🏆 ' : ''}${brand}
-                    </h3>
-                    ${location ? `<div style="font-size: 10px; color: #666; margin-bottom: 8px;">📍 ${location}</div>` : ''}
-                    <div style="margin-top: 6px;">
-                        ${priceContent || '<div style="font-size: 12px; color: #999;">No price data available</div>'}
+                <div style="
+                    max-width: 320px; 
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+                    background: white;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    overflow: hidden;
+                    margin: 0;
+                ">
+                    <div style="
+                        background: ${props.is_best_price ? 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'}; 
+                        color: ${props.is_best_price ? '#333' : 'white'}; 
+                        padding: 12px 15px; 
+                        margin: 0;
+                    ">
+                        <h3 style="
+                            margin: 0; 
+                            font-size: 16px; 
+                            font-weight: 600;
+                            line-height: 1.2;
+                        ">
+                            ${props.is_best_price ? '🏆 ' : ''}${brand}
+                        </h3>
+                        ${location ? `<div style="font-size: 11px; opacity: 0.9; margin-top: 4px; line-height: 1.3;">📍 ${location}</div>` : ''}
+                    </div>
+                    <div style="padding: 15px;">
+                        <h4 style="
+                            margin: 0 0 10px 0; 
+                            font-size: 13px; 
+                            color: #666; 
+                            text-transform: uppercase; 
+                            letter-spacing: 0.5px;
+                            font-weight: 600;
+                        ">
+                            ⛽ Current Prices
+                        </h4>
+                        <div style="margin-top: 8px;">
+                            ${priceContent || '<div style="font-size: 12px; color: #999; font-style: italic;">No price data available</div>'}
+                        </div>
                     </div>
                 </div>
             `;
             
-            // Create popup with minimal options to avoid MapTiler issues
+            // Create popup with v3.6.0 compatible options
             try {
                 const popup = new maptilersdk.Popup({
                     closeButton: true,
                     closeOnClick: true,
-                    maxWidth: '300px'
+                    closeOnMove: false,
+                    maxWidth: '350px',
+                    anchor: 'auto',
+                    offset: 15,
+                    className: 'fuel-station-popup'
                 });
                 
                 if (popup.setLngLat && popup.setHTML && popup.addTo) {
