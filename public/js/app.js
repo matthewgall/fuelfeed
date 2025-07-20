@@ -54,24 +54,50 @@ let currentRequest = null;
 
 // Function to get current map bounds as object
 function getMapBounds() {
-    const bounds = map.getBounds();
-    return {
-        west: bounds.getWest(),
-        south: bounds.getSouth(),
-        east: bounds.getEast(),
-        north: bounds.getNorth()
-    };
+    try {
+        if (!map || !map.getBounds) {
+            console.warn('Map not available for bounds calculation');
+            return null;
+        }
+        
+        const bounds = map.getBounds();
+        if (!bounds) {
+            console.warn('Map bounds not available');
+            return null;
+        }
+        
+        return {
+            west: bounds.getWest(),
+            south: bounds.getSouth(),
+            east: bounds.getEast(),
+            north: bounds.getNorth()
+        };
+    } catch (error) {
+        console.error('Error getting map bounds:', error);
+        return null;
+    }
 }
 
 // Function to load stations for current viewport with intelligent caching
 function loadStationsInView() {
     const bounds = getMapBounds();
     
-    // Skip loading if zoom level is too low on mobile (reduces data)
-    if (isMobile && map.getZoom() < 8) {
-        console.log('Skipping station load - zoom too low for mobile');
-        map.getSource('stations').setData({type: 'FeatureCollection', features: []});
+    if (!bounds) {
+        console.warn('Cannot load stations - map bounds not available');
         return;
+    }
+    
+    // Skip loading if zoom level is too low on mobile (reduces data)
+    try {
+        if (isMobile && map.getZoom && map.getZoom() < 8) {
+            console.log('Skipping station load - zoom too low for mobile');
+            if (map.getSource && map.getSource('stations')) {
+                map.getSource('stations').setData({type: 'FeatureCollection', features: []});
+            }
+            return;
+        }
+    } catch (error) {
+        console.warn('Error checking zoom level:', error);
     }
     
     // Check if we have all required data cached
@@ -84,7 +110,15 @@ function loadStationsInView() {
             cachedData.features = cachedData.features.slice(0, getMaxStations());
         }
         
-        map.getSource('stations').setData(cachedData);
+        try {
+            if (map.getSource && map.getSource('stations')) {
+                map.getSource('stations').setData(cachedData);
+            } else {
+                console.warn('Stations source not available for cached data');
+            }
+        } catch (error) {
+            console.error('Error setting cached station data:', error);
+        }
         console.log(`Loaded ${cachedData.features.length} stations from cache`);
         return;
     }
@@ -127,7 +161,15 @@ function loadStationsInView() {
             }
             
             // Update the data source with new data
-            map.getSource('stations').setData(data);
+            try {
+                if (map.getSource && map.getSource('stations')) {
+                    map.getSource('stations').setData(data);
+                } else {
+                    console.warn('Stations source not available for data update');
+                }
+            } catch (error) {
+                console.error('Error updating station data:', error);
+            }
             
             // Store in cache for future use
             stationCache.storeStations(bounds, data);
@@ -253,14 +295,25 @@ function monitorPerformance() {
 }
 
 map.on('load', function () {
-    // Add a source for the stations - initially empty
-    map.addSource('stations', {
-        'type': 'geojson',
-        'data': {
-            'type': 'FeatureCollection',
-            'features': []
+    try {
+        // Add error handling for map operations
+        if (!map || !map.addSource) {
+            console.error('Map not properly initialized');
+            return;
         }
-    });
+        
+        // Add a source for the stations - initially empty
+        map.addSource('stations', {
+            'type': 'geojson',
+            'data': {
+                'type': 'FeatureCollection',
+                'features': []
+            }
+        });
+    } catch (error) {
+        console.error('Error adding map source:', error);
+        return;
+    }
 
     // Add enhanced station layer with price-based styling (simplified for mobile)
     const stationLayerConfig = {
@@ -334,53 +387,66 @@ map.on('load', function () {
         }
     };
     
-    map.addLayer(stationLayerConfig);
+    try {
+        map.addLayer(stationLayerConfig);
+    } catch (error) {
+        console.error('Error adding station layer:', error);
+        return;
+    }
     
     // Add a label layer for station brands (simplified for mobile)
     if (!isLowEndMobile) {
-        map.addLayer({
-            'id': 'stations-labels',
-            'source': 'stations',
-            'type': 'symbol',
-            'layout': {
-                'text-field': ['get', 'brand'],
-                'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-                'text-size': isMobile ? [
-                    'interpolate',
-                    ['linear'],
-                    ['zoom'],
-                    8, 0,
-                    10, 8,
-                    14, 10
-                ] : [
-                    'interpolate',
-                    ['linear'],
-                    ['zoom'],
-                    10, 0,
-                    12, 10,
-                    16, 12
-                ],
-                'text-offset': [0, 2],
-                'text-anchor': 'top'
-            },
-            'paint': {
-                'text-color': '#333333',
-                'text-halo-color': '#ffffff',
-                'text-halo-width': isMobile ? 0.5 : 1
-            }
-        });
+        try {
+            map.addLayer({
+                'id': 'stations-labels',
+                'source': 'stations',
+                'type': 'symbol',
+                'layout': {
+                    'text-field': ['get', 'brand'],
+                    'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+                    'text-size': isMobile ? [
+                        'interpolate',
+                        ['linear'],
+                        ['zoom'],
+                        8, 0,
+                        10, 8,
+                        14, 10
+                    ] : [
+                        'interpolate',
+                        ['linear'],
+                        ['zoom'],
+                        10, 0,
+                        12, 10,
+                        16, 12
+                    ],
+                    'text-offset': [0, 2],
+                    'text-anchor': 'top'
+                },
+                'paint': {
+                    'text-color': '#333333',
+                    'text-halo-color': '#ffffff',
+                    'text-halo-width': isMobile ? 0.5 : 1
+                }
+            });
+        } catch (error) {
+            console.error('Error adding labels layer:', error);
+        }
     }
 
     // Load initial data for current view
     loadStationsInView();
 
     // Reload data when map moves (debounced) - reduce events on mobile
-    if (!isLowEndMobile) {
-        map.on('moveend', debouncedLoadStations);
-        map.on('zoomend', debouncedLoadStations);
-    } else {
-        // Very limited event handling for low-end devices
-        map.on('zoomend', debouncedLoadStations);
+    try {
+        if (!isLowEndMobile) {
+            map.on('moveend', debouncedLoadStations);
+            map.on('zoomend', debouncedLoadStations);
+        } else {
+            // Very limited event handling for low-end devices
+            map.on('zoomend', debouncedLoadStations);
+        }
+    } catch (error) {
+        console.error('Error adding map event listeners:', error);
     }
     
     // Mobile-specific optimizations
