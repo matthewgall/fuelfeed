@@ -256,7 +256,15 @@ map.on('load', function () {
                 
                 <div style="font-size: ${isMobile ? '12px' : '11px'}; color: #888; border-top: 1px solid #f0f0f0; padding-top: 10px; display: flex; align-items: center;">
                     <span style="margin-right: 5px;">🕐</span>
-                    <strong>Updated:</strong>&nbsp;${new Date(props.updated).toLocaleString() || 'Unknown'}
+                    <strong>Updated:</strong>&nbsp;${(() => {
+                        try {
+                            if (!props.updated || props.updated === 'Unknown') return 'Unknown';
+                            const date = new Date(props.updated);
+                            return isNaN(date.getTime()) ? props.updated : date.toLocaleString();
+                        } catch (e) {
+                            return props.updated || 'Unknown';
+                        }
+                    })()}
                 </div>
             </div>
         `;
