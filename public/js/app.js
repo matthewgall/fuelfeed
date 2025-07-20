@@ -507,7 +507,7 @@ map.on('load', function () {
             existingPopups.forEach(popup => popup.remove());
             
             // Create enhanced popup content with better styling
-            const isMobile = window.innerWidth <= 480;
+            // Use global mobile detection instead of redeclaring
             
             // Simplified parsing for mobile performance
             const titleParts = props.title.split(', ');
@@ -548,24 +548,24 @@ map.on('load', function () {
             }
             
             const content = `
-                <div style="max-width: ${isMobile ? '280px' : '320px'}; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
+                <div style="max-width: ${isLowEndMobile ? '260px' : isMobile ? '280px' : '320px'}; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
                     <div style="background: ${props.is_best_price ? '#FFD700' : '#667eea'}; color: ${props.is_best_price ? '#333' : 'white'}; padding: 12px; margin: -15px -15px 12px -15px; border-radius: 6px 6px 0 0;">
-                        <h3 style="margin: 0; font-size: ${isMobile ? '16px' : '15px'}; font-weight: 600;">
+                        <h3 style="margin: 0; font-size: ${isLowEndMobile ? '14px' : isMobile ? '16px' : '15px'}; font-weight: 600;">
                             ${props.is_best_price ? '🏆 ' : ''}${brand}
                         </h3>
-                        <div style="font-size: ${isMobile ? '12px' : '11px'}; opacity: 0.9; margin-top: 4px;">
+                        <div style="font-size: ${isLowEndMobile ? '10px' : isMobile ? '12px' : '11px'}; opacity: 0.9; margin-top: 4px;">
                             📍 ${location}
                         </div>
                     </div>
                     
                     <div style="margin-bottom: 12px;">
-                        <h4 style="margin: 0 0 8px 0; font-size: ${isMobile ? '13px' : '12px'}; color: #666;">
+                        <h4 style="margin: 0 0 8px 0; font-size: ${isLowEndMobile ? '11px' : isMobile ? '13px' : '12px'}; color: #666;">
                             ⛽ Prices
                         </h4>
                         ${priceContent || '<div style="color: #999;">No price data</div>'}
                     </div>
                     
-                    <div style="font-size: ${isMobile ? '10px' : '9px'}; color: #888; border-top: 1px solid #f0f0f0; padding-top: 8px;">
+                    <div style="font-size: ${isLowEndMobile ? '8px' : isMobile ? '10px' : '9px'}; color: #888; border-top: 1px solid #f0f0f0; padding-top: 8px;">
                         🕐 Updated: ${(() => {
                             try {
                                 if (!props.updated || props.updated === 'Unknown') return 'Unknown';
@@ -579,16 +579,35 @@ map.on('load', function () {
                 </div>
             `;
             
-            new maptilersdk.Popup({
-                closeButton: true,
-                closeOnClick: true,
-                closeOnMove: false,
-                maxWidth: isMobile ? '90vw' : '350px',
-                anchor: isMobile ? 'bottom' : 'auto'
-            })
-                .setLngLat(e.lngLat)
-                .setHTML(content)
-                .addTo(map);
+            // Validate coordinates before creating popup
+            if (!e.lngLat || typeof e.lngLat.lng !== 'number' || typeof e.lngLat.lat !== 'number') {
+                console.error('Invalid coordinates for popup:', e.lngLat);
+                
+                // Fallback: try to get coordinates from feature geometry
+                if (feature.geometry && feature.geometry.coordinates) {
+                    const coords = feature.geometry.coordinates;
+                    e.lngLat = { lng: coords[0], lat: coords[1] };
+                    console.log('Using feature coordinates as fallback:', e.lngLat);
+                } else {
+                    console.error('No valid coordinates available for popup');
+                    return;
+                }
+            }
+            
+            try {
+                new maptilersdk.Popup({
+                    closeButton: true,
+                    closeOnClick: true,
+                    closeOnMove: false,
+                    maxWidth: isLowEndMobile ? '90vw' : isMobile ? '80vw' : '350px',
+                    anchor: isMobile ? 'bottom' : 'auto'
+                })
+                    .setLngLat(e.lngLat)
+                    .setHTML(content)
+                    .addTo(map);
+            } catch (popupError) {
+                console.error('Error creating popup:', popupError);
+            }
                 
         } catch (error) {
             console.warn('Popup creation failed:', error);
