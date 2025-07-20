@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>fuelaround.me</title>
     <link href="//cdn.maptiler.com/maptiler-sdk-js/v1.2.0/maptiler-sdk.css" rel="stylesheet" />
     <!-- Icons -->
@@ -18,6 +18,7 @@
         body {
             margin: 0;
             padding: 0;
+            touch-action: manipulation; /* Disable double-tap zoom */
         }
 
         #map {
@@ -25,24 +26,76 @@
             top: 0;
             bottom: 0;
             width: 100%;
-        }
-        .mapboxgl-popup {
-            max-width: 400px;
-            font: 12px/20px 'Helvetica Neue', Arial, Helvetica, sans-serif;
+            height: 100vh;
+            height: 100dvh; /* Dynamic viewport height for mobile */
         }
         
+        /* Mobile-optimized popup styling */
+        .mapboxgl-popup {
+            max-width: 300px;
+            font: 14px/20px 'Helvetica Neue', Arial, Helvetica, sans-serif;
+        }
+        
+        @media (max-width: 480px) {
+            .mapboxgl-popup {
+                max-width: calc(100vw - 40px);
+                font-size: 16px; /* Larger text for mobile readability */
+            }
+            
+            .mapboxgl-popup-content {
+                padding: 15px;
+                border-radius: 8px;
+            }
+        }
+        
+        /* Mobile-friendly loading indicator */
         #loading-indicator {
             position: absolute;
             top: 10px;
-            right: 10px;
-            background: rgba(255, 255, 255, 0.9);
-            border-radius: 4px;
-            padding: 8px 12px;
-            font-size: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 12px 20px;
+            font-size: 16px;
             font-family: 'Helvetica Neue', Arial, sans-serif;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
             z-index: 1000;
             display: none;
+            backdrop-filter: blur(4px);
+        }
+        
+        @media (max-width: 480px) {
+            #loading-indicator {
+                font-size: 14px;
+                padding: 10px 16px;
+                top: 15px;
+            }
+        }
+        
+        /* Touch-friendly controls */
+        .mapboxgl-ctrl-group {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        
+        @media (max-width: 480px) {
+            .mapboxgl-ctrl-zoom-in,
+            .mapboxgl-ctrl-zoom-out {
+                width: 44px;
+                height: 44px;
+                line-height: 44px;
+                font-size: 20px;
+            }
+            
+            .mapboxgl-ctrl-geolocate {
+                width: 44px;
+                height: 44px;
+            }
+            
+            .mapboxgl-ctrl-top-right {
+                top: 20px;
+                right: 20px;
+            }
         }
     </style>
 </head>

@@ -13,6 +13,15 @@ const responseData = {
     }
 }
 
+// Cache TTL helper function
+function getCacheTTL(env: any) {
+    return {
+        FUEL_DATA: parseInt(env.FUEL_DATA_TTL || '86400'), // 24 hours default
+        MAPBOX_DATA: parseInt(env.MAPBOX_DATA_TTL || '43200'), // 12 hours default
+        BASE_DATA: parseInt(env.BASE_DATA_TTL || '3600') // 1 hour default
+    };
+}
+
 async function doSchedule(event:any, env: any) {
     // Smart cache invalidation before update
     const invalidationResult = await CacheInvalidator.smartInvalidation(env, 'scheduled-update');
@@ -40,8 +49,9 @@ async function doSchedule(event:any, env: any) {
 }
 
 router.get('/api/data.json', async (request, env, context) => {
+    const CACHE_TTL = getCacheTTL(env);
     const cacheManager = new CacheManager({
-        defaultTtl: 1800,
+        defaultTtl: CACHE_TTL.FUEL_DATA,
         compressResponse: true,
         enableEdgeCache: true
     });
@@ -65,24 +75,25 @@ router.get('/api/data.json', async (request, env, context) => {
     if (data == null) {
         data = new Fuel;
         data = await data.getData(env);
-        await env.KV.put("fueldata", JSON.stringify(data), { expirationTtl: 3600 });
+        await env.KV.put("fueldata", JSON.stringify(data), { expirationTtl: CACHE_TTL.BASE_DATA });
         await env.KV.put('fueldata-updated', Date.now().toString(), { expirationTtl: 86400 });
     }
     
     // Store in compressed cache and return
-    await cacheManager.storeResponse(cacheKey, data, env, 1800);
+    await cacheManager.storeResponse(cacheKey, data, env, CACHE_TTL.FUEL_DATA);
     
     const headers = {
         ...responseData.headers,
-        ...cacheManager.createCacheHeaders(lastUpdated || Date.now().toString(), 1800)
+        ...cacheManager.createCacheHeaders(lastUpdated || Date.now().toString(), CACHE_TTL.FUEL_DATA)
     };
     
     return new Response(JSON.stringify(data), { headers });
 })
 
 router.get('/api/data.mapbox', async (request, env, context) => {
+    const CACHE_TTL = getCacheTTL(env);
     const cacheManager = new CacheManager({
-        defaultTtl: 900,
+        defaultTtl: CACHE_TTL.MAPBOX_DATA,
         compressResponse: true,
         enableEdgeCache: true
     });
@@ -116,7 +127,7 @@ router.get('/api/data.mapbox', async (request, env, context) => {
     if (d == null) {
         d = new Fuel;
         d = await d.getData(env);
-        await env.KV.put("fueldata", JSON.stringify(d), { expirationTtl: 3600 })
+        await env.KV.put("fueldata", JSON.stringify(d), { expirationTtl: CACHE_TTL.BASE_DATA })
     }
 
     // Stream-optimized filtering with early exit
@@ -173,11 +184,11 @@ router.get('/api/data.mapbox', async (request, env, context) => {
     };
     
     // Store in compressed cache
-    await cacheManager.storeResponse(cacheKey, resp, env, 900);
+    await cacheManager.storeResponse(cacheKey, resp, env, CACHE_TTL.MAPBOX_DATA);
     
     const headers = {
         ...responseData.headers,
-        ...cacheManager.createCacheHeaders(Date.now().toString(), 900),
+        ...cacheManager.createCacheHeaders(Date.now().toString(), CACHE_TTL.MAPBOX_DATA),
         'X-Station-Count': stationCount.toString(),
         'X-Cache-Key': cacheKey
     };

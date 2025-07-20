@@ -1,10 +1,10 @@
 // Advanced spatial caching system for fuel station data
 class StationCache {
     constructor() {
-        // Cache configuration
+        // Cache configuration with configurable TTL
         this.tileSize = 0.1; // degrees (roughly 11km at UK latitude)
         this.maxCacheSize = 100; // maximum tiles to cache
-        this.cacheExpiry = 30 * 60 * 1000; // 30 minutes in milliseconds
+        this.cacheExpiry = this.getCacheExpiry(); // configurable cache expiry
         this.maxMemoryMB = 10; // maximum memory usage in MB
         
         // Cache storage
@@ -23,7 +23,25 @@ class StationCache {
         // Load persisted cache from localStorage
         this.loadFromStorage();
         
-        console.log('StationCache initialized with tile size:', this.tileSize, 'Max memory:', this.maxMemoryMB + 'MB');
+        console.log('StationCache initialized with tile size:', this.tileSize, 'Max memory:', this.maxMemoryMB + 'MB', 'Cache TTL:', this.cacheExpiry / (60 * 1000) + 'min');
+    }
+    
+    // Get cache expiry from localStorage config or default to 1 hour
+    getCacheExpiry() {
+        const configTTL = localStorage.getItem('stationCacheTTL');
+        if (configTTL && !isNaN(parseInt(configTTL))) {
+            return parseInt(configTTL) * 60 * 1000; // convert minutes to milliseconds
+        }
+        return 60 * 60 * 1000; // default: 1 hour in milliseconds
+    }
+    
+    // Set cache TTL in minutes
+    setCacheExpiry(minutes) {
+        if (minutes > 0) {
+            localStorage.setItem('stationCacheTTL', minutes.toString());
+            this.cacheExpiry = minutes * 60 * 1000;
+            console.log('Cache TTL updated to:', minutes, 'minutes');
+        }
     }
     
     // Convert geographic bounds to tile coordinates

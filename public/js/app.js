@@ -8,10 +8,20 @@ if ("serviceWorker" in navigator) {
 }
 
 maptilersdk.config.apiKey = 'cwsqqYCkA54i9eIGaph9';
+
+// Mobile-optimized map configuration
 var map = new maptilersdk.Map({
     container: 'map',
     style: maptilersdk.MapStyle.STREETS,
-    geolocate: maptilersdk.GeolocationType.POINT
+    geolocate: maptilersdk.GeolocationType.POINT,
+    center: [-2.0, 53.5], // Center on UK
+    zoom: 6,
+    // Mobile-friendly interaction options
+    touchZoomRotate: true,
+    dragRotate: false, // Disable rotation for simpler mobile UX
+    touchPitch: false, // Disable pitch for simpler mobile UX
+    doubleClickZoom: false, // Prevent accidental double-tap zoom
+    scrollZoom: { around: 'center' } // Better mobile scroll behavior
 });
 
 // Debounce function to limit API calls
@@ -136,11 +146,40 @@ map.on('load', function () {
         stationCache.clearExpired();
     }, 5 * 60 * 1000);
 
-    // When a click event occurs on a feature in the stations layer, open a popup
+    // Mobile-optimized popup for station info
     map.on('click', 'stations-layer', function (e) {
-        new maptilersdk.Popup()
+        const feature = e.features[0];
+        const props = feature.properties;
+        
+        // Close any existing popups
+        const existingPopups = document.querySelectorAll('.mapboxgl-popup');
+        existingPopups.forEach(popup => popup.remove());
+        
+        // Create mobile-friendly popup content
+        const isMobile = window.innerWidth <= 480;
+        const content = `
+            <div style="max-width: ${isMobile ? '280px' : '320px'};">
+                <h3 style="margin: 0 0 10px 0; font-size: ${isMobile ? '18px' : '16px'}; color: #333;">
+                    ${props.title}
+                </h3>
+                <div style="font-size: ${isMobile ? '16px' : '14px'}; line-height: 1.4; margin-bottom: 12px;">
+                    ${props.description}
+                </div>
+                <div style="font-size: ${isMobile ? '13px' : '12px'}; color: #666; border-top: 1px solid #eee; padding-top: 8px;">
+                    <strong>Updated:</strong> ${props.updated}
+                </div>
+            </div>
+        `;
+        
+        new maptilersdk.Popup({
+            closeButton: true,
+            closeOnClick: true,
+            closeOnMove: false, // Keep open when map moves slightly
+            maxWidth: isMobile ? '90vw' : '400px',
+            anchor: isMobile ? 'bottom' : 'auto' // Bottom anchor works better on mobile
+        })
             .setLngLat(e.lngLat)
-            .setHTML(`<strong>${e.features[0].properties.title}</strong><br /><br />${e.features[0].properties.description}<br /><br /><strong>Updated:</strong> ${e.features[0].properties.updated}`)
+            .setHTML(content)
             .addTo(map);
     });
 
