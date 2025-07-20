@@ -9,6 +9,10 @@ if ("serviceWorker" in navigator) {
 
 maptilersdk.config.apiKey = 'cwsqqYCkA54i9eIGaph9';
 
+// Mobile detection (must be at top before map initialization)
+const isMobile = window.innerWidth <= 768; // Broader mobile detection
+const isLowEndMobile = window.innerWidth <= 480 || navigator.hardwareConcurrency <= 2;
+
 // Mobile-optimized map configuration
 var map = new maptilersdk.Map({
     container: 'map',
@@ -149,8 +153,6 @@ function loadStationsInView() {
 }
 
 // Mobile-optimized debouncing with longer delay on mobile
-const isMobile = window.innerWidth <= 768; // Broader mobile detection
-const isLowEndMobile = window.innerWidth <= 480 || navigator.hardwareConcurrency <= 2;
 const debounceDelay = isLowEndMobile ? 2000 : isMobile ? 1500 : 500; // Much longer delays for stability
 const debouncedLoadStations = debounce(loadStationsInView, debounceDelay);
 
