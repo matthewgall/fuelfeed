@@ -15,13 +15,20 @@ var map = new maptilersdk.Map({
     style: maptilersdk.MapStyle.STREETS,
     geolocate: maptilersdk.GeolocationType.POINT,
     center: [-2.0, 53.5], // Center on UK
-    zoom: 6,
+    zoom: isMobile ? 7 : 6, // Start more zoomed in on mobile
+    minZoom: isMobile ? 6 : 4, // Prevent zooming out too far on mobile
+    maxZoom: isMobile ? 14 : 18, // Limit max zoom on mobile
     // Mobile-friendly interaction options
-    touchZoomRotate: true,
+    touchZoomRotate: !isLowEndMobile, // Disable touch zoom on low-end devices
     dragRotate: false, // Disable rotation for simpler mobile UX
     touchPitch: false, // Disable pitch for simpler mobile UX
     doubleClickZoom: false, // Prevent accidental double-tap zoom
-    scrollZoom: { around: 'center' } // Better mobile scroll behavior
+    scrollZoom: isMobile ? false : { around: 'center' }, // Disable scroll zoom on mobile
+    dragPan: !isLowEndMobile, // Disable drag on very low-end devices
+    keyboard: false, // Disable keyboard navigation on mobile
+    boxZoom: false, // Disable box zoom on mobile
+    trackResize: !isMobile, // Reduce resize tracking on mobile
+    renderWorldCopies: false // Don't render world copies for performance
 });
 
 // Debounce function to limit API calls
@@ -56,10 +63,23 @@ function getMapBounds() {
 function loadStationsInView() {
     const bounds = getMapBounds();
     
+    // Skip loading if zoom level is too low on mobile (reduces data)
+    if (isMobile && map.getZoom() < 8) {
+        console.log('Skipping station load - zoom too low for mobile');
+        map.getSource('stations').setData({type: 'FeatureCollection', features: []});
+        return;
+    }
+    
     // Check if we have all required data cached
     if (stationCache.hasValidData(bounds)) {
         console.log('Loading stations from cache');
         const cachedData = stationCache.getStations(bounds);
+        
+        // Limit stations on mobile devices
+        if (isMobile && cachedData.features.length > getMaxStations()) {
+            cachedData.features = cachedData.features.slice(0, getMaxStations());
+        }
+        
         map.getSource('stations').setData(cachedData);
         console.log(`Loaded ${cachedData.features.length} stations from cache`);
         return;
@@ -70,23 +90,38 @@ function loadStationsInView() {
         currentRequest.abort();
     }
     
-    // Create bbox parameter for API
+    // Create bbox parameter for API with station limit
+    const maxStations = getMaxStations();
     const bbox = `${bounds.west},${bounds.south},${bounds.east},${bounds.north}`;
-    const url = `/api/data.mapbox?bbox=${bbox}`;
-    console.log('Fetching stations from API for bounds:', bbox);
+    const url = `/api/data.mapbox?bbox=${bbox}&limit=${maxStations}`;
+    console.log(`Fetching max ${maxStations} stations from API for bounds:`, bbox);
     
     // Show loading indicator
     const loadingIndicator = document.getElementById('loading-indicator');
-    loadingIndicator.style.display = 'block';
+    if (loadingIndicator) loadingIndicator.style.display = 'block';
     
     // Create new AbortController for this request
     const controller = new AbortController();
     currentRequest = controller;
     
+    // Add timeout for mobile devices
+    const timeoutId = isLowEndMobile ? setTimeout(() => {
+        controller.abort();
+        console.warn('Request timeout on low-end mobile');
+    }, 10000) : null;
+    
     // Fetch data with abort signal
     fetch(url, { signal: controller.signal })
         .then(response => response.json())
         .then(data => {
+            if (timeoutId) clearTimeout(timeoutId);
+            
+            // Limit stations for mobile performance
+            if (isMobile && data.features && data.features.length > maxStations) {
+                data.features = data.features.slice(0, maxStations);
+                console.log(`Limited to ${maxStations} stations for mobile performance`);
+            }
+            
             // Update the data source with new data
             map.getSource('stations').setData(data);
             
@@ -96,24 +131,35 @@ function loadStationsInView() {
             console.log(`Loaded ${data.features.length} stations from API`);
             
             // Hide loading indicator
-            loadingIndicator.style.display = 'none';
+            if (loadingIndicator) loadingIndicator.style.display = 'none';
             currentRequest = null;
         })
         .catch(error => {
+            if (timeoutId) clearTimeout(timeoutId);
+            
             if (error.name !== 'AbortError') {
                 console.error('Error loading stations:', error);
+                trackPerformanceIssue();
             }
             
             // Hide loading indicator on error
-            loadingIndicator.style.display = 'none';
+            if (loadingIndicator) loadingIndicator.style.display = 'none';
             currentRequest = null;
         });
 }
 
 // Mobile-optimized debouncing with longer delay on mobile
-const isMobile = window.innerWidth <= 480;
-const debounceDelay = isMobile ? 1000 : 500; // Longer delay on mobile for stability
+const isMobile = window.innerWidth <= 768; // Broader mobile detection
+const isLowEndMobile = window.innerWidth <= 480 || navigator.hardwareConcurrency <= 2;
+const debounceDelay = isLowEndMobile ? 2000 : isMobile ? 1500 : 500; // Much longer delays for stability
 const debouncedLoadStations = debounce(loadStationsInView, debounceDelay);
+
+// Station limits based on device capability
+const getMaxStations = () => {
+    if (isLowEndMobile) return 100; // Very low limit for low-end devices
+    if (isMobile) return 300; // Moderate limit for mobile
+    return 1000; // Higher limit for desktop
+};
 
 // Memory cleanup for mobile
 function cleanupMemory() {
@@ -123,24 +169,85 @@ function cleanupMemory() {
             window.gc();
         }
         
-        // Clear old popup references
+        // Clear all popups on mobile for memory
         const oldPopups = document.querySelectorAll('.mapboxgl-popup');
-        if (oldPopups.length > 1) {
-            for (let i = 0; i < oldPopups.length - 1; i++) {
-                oldPopups[i].remove();
-            }
+        oldPopups.forEach(popup => popup.remove());
+        
+        // Clear event listeners cache if it exists
+        if (window.maptilersdk && map._listeners) {
+            // Reduce listener overhead on mobile
+            console.log('Cleaning mobile memory');
         }
+        
+        // Clear any cached DOM references
+        const unusedElements = document.querySelectorAll('[data-cleanup="true"]');
+        unusedElements.forEach(el => el.remove());
+    }
+}
+
+// Aggressive memory management for low-end devices
+function aggressiveCleanup() {
+    if (isLowEndMobile) {
+        cleanupMemory();
+        
+        // Clear cache more aggressively
+        stationCache.clear();
+        
+        // Reset performance counter
+        performanceIssues = 0;
+        
+        console.log('Aggressive cleanup performed');
     }
 }
 
 // Performance monitoring
 let performanceIssues = 0;
+let isLowPerformanceMode = false;
+
 function trackPerformanceIssue() {
     performanceIssues++;
-    if (performanceIssues > 5 && isMobile) {
+    
+    if (performanceIssues > 3 && isLowEndMobile) {
+        console.warn('Entering low performance mode');
+        isLowPerformanceMode = true;
+        aggressiveCleanup();
+        
+        // Disable expensive features
+        if (map.getLayer('stations-labels')) {
+            map.setLayoutProperty('stations-labels', 'visibility', 'none');
+        }
+    } else if (performanceIssues > 5 && isMobile) {
         console.warn('Multiple performance issues detected, reducing functionality');
-        // Could disable hover effects, reduce cache size, etc.
+        isLowPerformanceMode = true;
+        
+        // Reduce cache size and cleanup
+        stationCache.clear();
+        cleanupMemory();
     }
+}
+
+// Monitor frame rate and trigger cleanup
+let frameCount = 0;
+let lastFrameTime = performance.now();
+
+function monitorPerformance() {
+    if (!isMobile) return;
+    
+    frameCount++;
+    const now = performance.now();
+    
+    if (frameCount % 60 === 0) { // Check every 60 frames
+        const fps = 1000 / ((now - lastFrameTime) / 60);
+        
+        if (fps < 20 && isLowEndMobile) {
+            console.warn(`Low FPS detected: ${fps.toFixed(1)}`);
+            trackPerformanceIssue();
+        }
+        
+        lastFrameTime = now;
+    }
+    
+    requestAnimationFrame(monitorPerformance);
 }
 
 map.on('load', function () {
@@ -153,13 +260,37 @@ map.on('load', function () {
         }
     });
 
-    // Add enhanced station layer with price-based styling
-    map.addLayer({
+    // Add enhanced station layer with price-based styling (simplified for mobile)
+    const stationLayerConfig = {
         'id': 'stations-layer',
         'source': 'stations',
         'type': 'circle',
-        'paint': {
-            // Size based on zoom level for better visibility
+        'paint': isMobile ? {
+            // Simplified mobile rendering
+            'circle-radius': isLowEndMobile ? 8 : [
+                'interpolate',
+                ['linear'],
+                ['zoom'],
+                6, 4,
+                10, 8,
+                14, 12
+            ],
+            'circle-color': [
+                'case',
+                ['get', 'is_best_price'], '#FFD700', // Gold for best prices
+                ['has', 'lowest_price'], [
+                    'step',
+                    ['get', 'lowest_price'],
+                    '#00C851', 1.40, '#ffbb33', 1.50, '#FF4444'
+                ],
+                '#007cbf'
+            ],
+            'circle-stroke-width': isLowEndMobile ? 1 : 2,
+            'circle-stroke-color': '#ffffff',
+            'circle-opacity': 0.9,
+            'circle-stroke-opacity': 0.8
+        } : {
+            // Full desktop rendering
             'circle-radius': [
                 'interpolate',
                 ['linear'],
@@ -168,84 +299,100 @@ map.on('load', function () {
                 12, 10,
                 16, 14
             ],
-            // Color based on price with special highlighting for best prices
             'circle-color': [
                 'case',
-                // Highlight stations with best prices in gold
-                ['get', 'is_best_price'], '#FFD700', // Gold for best price stations
-                // Regular price-based coloring
+                ['get', 'is_best_price'], '#FFD700',
                 ['has', 'lowest_price'],
                 [
                     'interpolate',
                     ['linear'],
                     ['get', 'lowest_price'],
-                    1.30, '#00C851', // Green for low prices (£1.30)
-                    1.40, '#ffbb33', // Amber for medium prices (£1.40)
-                    1.50, '#FF4444'  // Red for high prices (£1.50)
+                    1.30, '#00C851',
+                    1.40, '#ffbb33',
+                    1.50, '#FF4444'
                 ],
-                '#007cbf' // Default blue if no price data
+                '#007cbf'
             ],
             'circle-stroke-width': [
                 'case',
-                ['get', 'is_best_price'], 4, // Thicker stroke for best price stations
-                2 // Normal stroke for others
+                ['get', 'is_best_price'], 4,
+                2
             ],
             'circle-stroke-color': [
                 'case',
-                ['get', 'is_best_price'], '#FF6B35', // Orange stroke for best price stations
-                '#ffffff' // White stroke for others
+                ['get', 'is_best_price'], '#FF6B35',
+                '#ffffff'
             ],
             'circle-opacity': [
                 'case',
-                ['get', 'is_best_price'], 1.0, // Full opacity for best price stations
-                0.8 // Normal opacity for others
+                ['get', 'is_best_price'], 1.0,
+                0.8
             ],
             'circle-stroke-opacity': 1
         }
-    });
+    };
     
-    // Add a label layer for station brands
-    map.addLayer({
-        'id': 'stations-labels',
-        'source': 'stations',
-        'type': 'symbol',
-        'layout': {
-            'text-field': ['get', 'brand'],
-            'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-            'text-size': [
-                'interpolate',
-                ['linear'],
-                ['zoom'],
-                10, 0,
-                12, 10,
-                16, 12
-            ],
-            'text-offset': [0, 2],
-            'text-anchor': 'top'
-        },
-        'paint': {
-            'text-color': '#333333',
-            'text-halo-color': '#ffffff',
-            'text-halo-width': 1
-        }
-    });
+    map.addLayer(stationLayerConfig);
+    
+    // Add a label layer for station brands (simplified for mobile)
+    if (!isLowEndMobile) {
+        map.addLayer({
+            'id': 'stations-labels',
+            'source': 'stations',
+            'type': 'symbol',
+            'layout': {
+                'text-field': ['get', 'brand'],
+                'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+                'text-size': isMobile ? [
+                    'interpolate',
+                    ['linear'],
+                    ['zoom'],
+                    8, 0,
+                    10, 8,
+                    14, 10
+                ] : [
+                    'interpolate',
+                    ['linear'],
+                    ['zoom'],
+                    10, 0,
+                    12, 10,
+                    16, 12
+                ],
+                'text-offset': [0, 2],
+                'text-anchor': 'top'
+            },
+            'paint': {
+                'text-color': '#333333',
+                'text-halo-color': '#ffffff',
+                'text-halo-width': isMobile ? 0.5 : 1
+            }
+        });
+    }
 
     // Load initial data for current view
     loadStationsInView();
 
-    // Reload data when map moves (debounced)
-    map.on('moveend', debouncedLoadStations);
-    map.on('zoomend', debouncedLoadStations);
+    // Reload data when map moves (debounced) - reduce events on mobile
+    if (!isLowEndMobile) {
+        map.on('moveend', debouncedLoadStations);
+        map.on('zoomend', debouncedLoadStations);
+    } else {
+        // Very limited event handling for low-end devices
+        map.on('zoomend', debouncedLoadStations);
+    }
     
     // Mobile-specific optimizations
     if (isMobile) {
-        // Cleanup memory more frequently on mobile
-        setInterval(cleanupMemory, 2 * 60 * 1000); // Every 2 minutes
+        // More aggressive cleanup on mobile
+        setInterval(cleanupMemory, isLowEndMobile ? 60 * 1000 : 2 * 60 * 1000); // Every 1-2 minutes
         
         // Reduce cache cleanup frequency on mobile
         setInterval(() => {
             stationCache.clearExpired();
-        }, 10 * 60 * 1000); // Every 10 minutes instead of 5
+            if (isLowPerformanceMode) {
+                aggressiveCleanup();
+            }
+        }, isLowEndMobile ? 5 * 60 * 1000 : 10 * 60 * 1000); // Every 5-10 minutes
         
         // Add visibility change handler to cleanup when app goes to background
         document.addEventListener('visibilitychange', () => {
@@ -256,8 +403,22 @@ map.on('load', function () {
                     currentRequest.abort();
                     currentRequest = null;
                 }
+                // Aggressive cleanup when backgrounded
+                if (isLowEndMobile) {
+                    aggressiveCleanup();
+                }
+            } else if (!document.hidden && isLowEndMobile) {
+                // Reload data when coming back to foreground on low-end devices
+                setTimeout(() => {
+                    loadStationsInView();
+                }, 1000);
             }
         });
+        
+        // Start performance monitoring
+        if (isLowEndMobile) {
+            requestAnimationFrame(monitorPerformance);
+        }
     } else {
         // Desktop cleanup (original frequency)
         setInterval(() => {
@@ -378,58 +539,71 @@ map.on('load', function () {
     });
 
     // Simplified hover effects for mobile performance
-    let hoverTimeout = null;
-    
-    map.on('mouseenter', 'stations-layer', function (e) {
-        map.getCanvas().style.cursor = 'pointer';
+    if (!isMobile) {
+        // Desktop-only hover effects
+        let hoverTimeout = null;
         
-        // Debounce hover effects on mobile to prevent performance issues
-        if (window.innerWidth <= 480) return;
-        
-        clearTimeout(hoverTimeout);
-        hoverTimeout = setTimeout(() => {
+        map.on('mouseenter', 'stations-layer', function (e) {
+            map.getCanvas().style.cursor = 'pointer';
+            
+            clearTimeout(hoverTimeout);
+            hoverTimeout = setTimeout(() => {
+                try {
+                    map.setPaintProperty('stations-layer', 'circle-stroke-width', [
+                        'case',
+                        ['==', ['get', 'title'], e.features[0].properties.title],
+                        4, 2
+                    ]);
+                } catch (error) {
+                    console.warn('Hover effect failed:', error);
+                }
+            }, 50);
+        });
+
+        map.on('mouseleave', 'stations-layer', function () {
+            map.getCanvas().style.cursor = '';
+            clearTimeout(hoverTimeout);
+            
             try {
-                map.setPaintProperty('stations-layer', 'circle-stroke-width', [
-                    'case',
-                    ['==', ['get', 'title'], e.features[0].properties.title],
-                    4, 2
-                ]);
+                map.setPaintProperty('stations-layer', 'circle-stroke-width', 2);
             } catch (error) {
-                console.warn('Hover effect failed:', error);
+                console.warn('Hover reset failed:', error);
             }
-        }, 50);
-    });
+        });
+        
+        // Also apply hover effects to labels (desktop only)
+        if (map.getLayer('stations-labels')) {
+            map.on('mouseenter', 'stations-labels', function () {
+                map.getCanvas().style.cursor = 'pointer';
+            });
 
-    map.on('mouseleave', 'stations-layer', function () {
-        map.getCanvas().style.cursor = '';
-        clearTimeout(hoverTimeout);
-        
-        // Skip hover reset on mobile
-        if (window.innerWidth <= 480) return;
-        
-        try {
-            map.setPaintProperty('stations-layer', 'circle-stroke-width', 2);
-        } catch (error) {
-            console.warn('Hover reset failed:', error);
+            map.on('mouseleave', 'stations-labels', function () {
+                map.getCanvas().style.cursor = '';
+            });
+            
+            // Make labels clickable too
+            map.on('click', 'stations-labels', function (e) {
+                // Trigger the same popup as clicking on the circle
+                const feature = e.features[0];
+                if (feature && feature.properties) {
+                    const syntheticEvent = {
+                        features: [feature],
+                        lngLat: e.lngLat
+                    };
+                    // Manually trigger popup creation
+                    map.fire('click', { target: map, lngLat: e.lngLat, point: e.point, features: [feature] });
+                }
+            });
         }
-    });
-    
-    // Also apply hover effects to labels
-    map.on('mouseenter', 'stations-labels', function () {
-        map.getCanvas().style.cursor = 'pointer';
-    });
-
-    map.on('mouseleave', 'stations-labels', function () {
-        map.getCanvas().style.cursor = '';
-    });
-    
-    // Make labels clickable too
-    map.on('click', 'stations-labels', function (e) {
-        // Trigger the same popup as clicking on the circle
-        const feature = e.features[0];
-        const clickEvent = { features: [feature], lngLat: e.lngLat };
-        map.fire('click', { originalEvent: e.originalEvent, lngLat: e.lngLat, point: e.point, features: [feature] });
-    });
+    } else {
+        // Mobile-only simple cursor change
+        map.on('mouseenter', 'stations-layer', function () {
+            map.getCanvas().style.cursor = 'pointer';
+        });
+        map.on('mouseleave', 'stations-layer', function () {
+            map.getCanvas().style.cursor = '';
+        });
+    }
 });
 
 // Global functions for cache management (useful for debugging)

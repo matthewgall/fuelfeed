@@ -99,10 +99,12 @@ router.get('/api/data.mapbox', async (request, env, context) => {
         enableEdgeCache: true
     });
     
-    // Parse bounding box parameters
+    // Parse bounding box and limit parameters
     const url = new URL(request.url);
     const bbox = url.searchParams.get('bbox');
+    const limitParam = url.searchParams.get('limit');
     let bounds: { west: number, south: number, east: number, north: number } | null = null;
+    let requestedLimit = limitParam ? parseInt(limitParam) : null;
 
     if (bbox) {
         const coords = bbox.split(',').map(Number);
@@ -116,8 +118,8 @@ router.get('/api/data.mapbox', async (request, env, context) => {
         }
     }
 
-    // Try to get cached compressed response first
-    const cacheKey = cacheManager.generateCacheKey('mapbox', bounds);
+    // Try to get cached compressed response first (include limit in cache key)
+    const cacheKey = cacheManager.generateCacheKey('mapbox', bounds, requestedLimit);
     const cachedResponse = await cacheManager.getCachedResponse(cacheKey, env);
     if (cachedResponse) {
         return cachedResponse;
@@ -134,7 +136,7 @@ router.get('/api/data.mapbox', async (request, env, context) => {
     // First pass: collect all valid stations with price data
     const validStations: any[] = [];
     let stationCount = 0;
-    const maxStations = bounds ? 5000 : 10000;
+    const maxStations = requestedLimit || (bounds ? 5000 : 10000);
     
     for (let brand of Object.keys(d)) {
         for (let s of Object.keys(d[brand])) {

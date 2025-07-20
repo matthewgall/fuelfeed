@@ -136,7 +136,7 @@ export class CacheManager {
         return bytes.buffer;
     }
 
-    generateCacheKey(type: 'mapbox' | 'json', bounds?: { west: number, south: number, east: number, north: number }, extra?: string): string {
+    generateCacheKey(type: 'mapbox' | 'json', bounds?: { west: number, south: number, east: number, north: number }, extra?: string | number): string {
         if (type === 'json') {
             return extra ? `fueldata-${extra}` : 'fueldata';
         }
@@ -147,10 +147,12 @@ export class CacheManager {
             const s = bounds.south.toFixed(precision);
             const e = bounds.east.toFixed(precision);
             const n = bounds.north.toFixed(precision);
-            return `mapbox-bbox-${w},${s},${e},${n}`;
+            const limitSuffix = extra ? `-limit${extra}` : '';
+            return `mapbox-bbox-${w},${s},${e},${n}${limitSuffix}`;
         }
         
-        return 'mapbox-full';
+        const limitSuffix = extra ? `-limit${extra}` : '';
+        return `mapbox-full${limitSuffix}`;
     }
 
     async warmPopularRegions(env: any, fullData: any): Promise<void> {
