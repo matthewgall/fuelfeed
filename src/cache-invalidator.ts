@@ -68,4 +68,88 @@ export class CacheInvalidator {
                             deletedCount++;
                         }
                     }
-                }\n            }\n            \n            console.log(`Invalidated ${deletedCount} stale cache entries`);\n        } catch (error) {\n            console.log('Error invalidating stale cache:', error);\n        }\n        \n        return deletedCount;\n    }\n\n    static async invalidateByDependency(env: any, dependency: string): Promise<number> {\n        let deletedCount = 0;\n        \n        const affectedRules = this.INVALIDATION_RULES.filter(rule => \n            rule.dependencies.includes(dependency)\n        );\n        \n        for (const rule of affectedRules) {\n            deletedCount += await this.invalidateByPattern(env, rule.pattern);\n        }\n        \n        return deletedCount;\n    }\n\n    static async smartInvalidation(env: any, trigger: string): Promise<{ deleted: number, reason: string }> {\n        let totalDeleted = 0;\n        let reason = '';\n        \n        switch (trigger) {\n            case 'scheduled-update':\n                // When scheduled update runs, invalidate all mapbox caches but keep base data cache\n                totalDeleted += await this.invalidateByPattern(env, 'mapbox-');\n                totalDeleted += await this.invalidateByPattern(env, 'tile-');\n                reason = 'Scheduled data update - invalidated derived caches';\n                break;\n                \n            case 'manual-refresh':\n                // Manual refresh invalidates everything\n                totalDeleted += await this.invalidateByPattern(env, 'fueldata');\n                totalDeleted += await this.invalidateByPattern(env, 'mapbox-');\n                totalDeleted += await this.invalidateByPattern(env, 'tile-');\n                reason = 'Manual refresh - full cache invalidation';\n                break;\n                \n            case 'cleanup':\n                // Regular cleanup of stale entries\n                totalDeleted += await this.invalidateStale(env);\n                reason = 'Scheduled cleanup of stale entries';\n                break;\n                \n            default:\n                reason = 'Unknown trigger - no action taken';\n        }\n        \n        return { deleted: totalDeleted, reason };\n    }\n\n    static async getCacheStats(env: any): Promise<{ totalKeys: number, sizeEstimate: number, oldestEntry: number }> {\n        try {\n            const list = await env.KV.list();\n            let totalSize = 0;\n            let oldestTimestamp = Date.now();\n            \n            for (const key of list.keys) {\n                // Estimate size (KV doesn't provide actual sizes)\n                totalSize += key.name.length * 2; // Rough estimate\n                \n                const metadata = key.metadata as any;\n                if (metadata && metadata.timestamp && metadata.timestamp < oldestTimestamp) {\n                    oldestTimestamp = metadata.timestamp;\n                }\n            }\n            \n            return {\n                totalKeys: list.keys.length,\n                sizeEstimate: totalSize,\n                oldestEntry: Date.now() - oldestTimestamp\n            };\n        } catch (error) {\n            console.log('Error getting cache stats:', error);\n            return { totalKeys: 0, sizeEstimate: 0, oldestEntry: 0 };\n        }\n    }\n}
+                }
+            }
+            
+            console.log(`Invalidated ${deletedCount} stale cache entries`);
+        } catch (error) {
+            console.log('Error invalidating stale cache:', error);
+        }
+        
+        return deletedCount;
+    }
+
+    static async invalidateByDependency(env: any, dependency: string): Promise<number> {
+        let deletedCount = 0;
+        
+        const affectedRules = this.INVALIDATION_RULES.filter(rule => 
+            rule.dependencies.includes(dependency)
+        );
+        
+        for (const rule of affectedRules) {
+            deletedCount += await this.invalidateByPattern(env, rule.pattern);
+        }
+        
+        return deletedCount;
+    }
+
+    static async smartInvalidation(env: any, trigger: string): Promise<{ deleted: number, reason: string }> {
+        let totalDeleted = 0;
+        let reason = '';
+        
+        switch (trigger) {
+            case 'scheduled-update':
+                // When scheduled update runs, invalidate all mapbox caches but keep base data cache
+                totalDeleted += await this.invalidateByPattern(env, 'mapbox-');
+                totalDeleted += await this.invalidateByPattern(env, 'tile-');
+                reason = 'Scheduled data update - invalidated derived caches';
+                break;
+                
+            case 'manual-refresh':
+                // Manual refresh invalidates everything
+                totalDeleted += await this.invalidateByPattern(env, 'fueldata');
+                totalDeleted += await this.invalidateByPattern(env, 'mapbox-');
+                totalDeleted += await this.invalidateByPattern(env, 'tile-');
+                reason = 'Manual refresh - full cache invalidation';
+                break;
+                
+            case 'cleanup':
+                // Regular cleanup of stale entries
+                totalDeleted += await this.invalidateStale(env);
+                reason = 'Scheduled cleanup of stale entries';
+                break;
+                
+            default:
+                reason = 'Unknown trigger - no action taken';
+        }
+        
+        return { deleted: totalDeleted, reason };
+    }
+
+    static async getCacheStats(env: any): Promise<{ totalKeys: number, sizeEstimate: number, oldestEntry: number }> {
+        try {
+            const list = await env.KV.list();
+            let totalSize = 0;
+            let oldestTimestamp = Date.now();
+            
+            for (const key of list.keys) {
+                // Estimate size (KV doesn't provide actual sizes)
+                totalSize += key.name.length * 2; // Rough estimate
+                
+                const metadata = key.metadata as any;
+                if (metadata && metadata.timestamp && metadata.timestamp < oldestTimestamp) {
+                    oldestTimestamp = metadata.timestamp;
+                }
+            }
+            
+            return {
+                totalKeys: list.keys.length,
+                sizeEstimate: totalSize,
+                oldestEntry: Date.now() - oldestTimestamp
+            };
+        } catch (error) {
+            console.log('Error getting cache stats:', error);
+            return { totalKeys: 0, sizeEstimate: 0, oldestEntry: 0 };
+        }
+    }
+}
