@@ -153,12 +153,23 @@ router.get('/api/data.mapbox', async (request, env, context) => {
                 continue;
             }
             
-            // Build prices efficiently
+            // Build prices efficiently and calculate lowest price for color coding
             let prices: any = [];
+            let numericPrices: number[] = [];
+            
             for (let fuel of Object.keys(stn.prices)) {
                 let price = stn.prices[fuel];
                 prices.push(PriceNormalizer.formatDisplayPrice(price, fuel));
+                
+                // Extract numeric price for color coding (convert pence to pounds if needed)
+                if (typeof price === 'number') {
+                    const priceInPounds = price > 10 ? price / 100 : price;
+                    numericPrices.push(priceInPounds);
+                }
             }
+            
+            // Find lowest price for color coding
+            const lowestPrice = numericPrices.length > 0 ? Math.min(...numericPrices) : null;
             
             features.push({
                 "type": "Feature",
@@ -169,7 +180,9 @@ router.get('/api/data.mapbox', async (request, env, context) => {
                 "properties": {
                     "title": `${stn.address.brand}, ${stn.address.postcode}`,
                     "description": prices.join("<br />"),
-                    "updated": stn.updated
+                    "updated": stn.updated,
+                    "brand": stn.address.brand,
+                    "lowest_price": lowestPrice
                 }
             });
             

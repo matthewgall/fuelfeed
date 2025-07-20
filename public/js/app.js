@@ -123,14 +123,65 @@ map.on('load', function () {
         }
     });
 
-    // Add a layer showing the stations
+    // Add enhanced station layer with price-based styling
     map.addLayer({
         'id': 'stations-layer',
         'source': 'stations',
         'type': 'circle',
         'paint': {
-            'circle-radius': 8,
-            'circle-color': '#007cbf'
+            // Size based on zoom level for better visibility
+            'circle-radius': [
+                'interpolate',
+                ['linear'],
+                ['zoom'],
+                8, 6,
+                12, 10,
+                16, 14
+            ],
+            // Color based on price (if available)
+            'circle-color': [
+                'case',
+                ['has', 'lowest_price'],
+                [
+                    'interpolate',
+                    ['linear'],
+                    ['get', 'lowest_price'],
+                    130, '#00C851', // Green for low prices
+                    140, '#ffbb33', // Amber for medium prices  
+                    150, '#FF4444'  // Red for high prices
+                ],
+                '#007cbf' // Default blue if no price data
+            ],
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#ffffff',
+            'circle-opacity': 0.8,
+            'circle-stroke-opacity': 1
+        }
+    });
+    
+    // Add a label layer for station brands
+    map.addLayer({
+        'id': 'stations-labels',
+        'source': 'stations',
+        'type': 'symbol',
+        'layout': {
+            'text-field': ['get', 'brand'],
+            'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+            'text-size': [
+                'interpolate',
+                ['linear'],
+                ['zoom'],
+                10, 0,
+                12, 10,
+                16, 12
+            ],
+            'text-offset': [0, 2],
+            'text-anchor': 'top'
+        },
+        'paint': {
+            'text-color': '#333333',
+            'text-halo-color': '#ffffff',
+            'text-halo-width': 1
         }
     });
 
@@ -155,18 +206,57 @@ map.on('load', function () {
         const existingPopups = document.querySelectorAll('.mapboxgl-popup');
         existingPopups.forEach(popup => popup.remove());
         
-        // Create mobile-friendly popup content
+        // Create enhanced popup content with better styling
         const isMobile = window.innerWidth <= 480;
-        const content = `
-            <div style="max-width: ${isMobile ? '280px' : '320px'};">
-                <h3 style="margin: 0 0 10px 0; font-size: ${isMobile ? '18px' : '16px'}; color: #333;">
-                    ${props.title}
-                </h3>
-                <div style="font-size: ${isMobile ? '16px' : '14px'}; line-height: 1.4; margin-bottom: 12px;">
-                    ${props.description}
+        
+        // Parse brand and location from title
+        const titleParts = props.title.split(', ');
+        const brand = titleParts[0] || 'Unknown Station';
+        const location = titleParts.slice(1).join(', ') || 'Location not available';
+        
+        // Parse prices from description
+        const prices = props.description.split('<br />');
+        const priceElements = prices.map(price => {
+            const [fuel, priceValue] = price.split(': ');
+            const numericPrice = parseFloat(priceValue?.replace('£', '') || '0');
+            let priceColor = '#333';
+            
+            // Color code prices
+            if (numericPrice > 0) {
+                if (numericPrice < 1.40) priceColor = '#00C851'; // Green
+                else if (numericPrice < 1.50) priceColor = '#ffbb33'; // Amber
+                else priceColor = '#FF4444'; // Red
+            }
+            
+            return `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #f0f0f0;">
+                    <span style="font-weight: 500; color: #555;">${fuel || ''}</span>
+                    <span style="font-weight: bold; color: ${priceColor}; font-size: ${isMobile ? '16px' : '14px'};">${priceValue || 'N/A'}</span>
                 </div>
-                <div style="font-size: ${isMobile ? '13px' : '12px'}; color: #666; border-top: 1px solid #eee; padding-top: 8px;">
-                    <strong>Updated:</strong> ${props.updated}
+            `;
+        }).join('');
+        
+        const content = `
+            <div style="max-width: ${isMobile ? '300px' : '340px'}; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; margin: -15px -15px 15px -15px; border-radius: 8px 8px 0 0;">
+                    <h3 style="margin: 0; font-size: ${isMobile ? '18px' : '16px'}; font-weight: 600;">
+                        ${brand}
+                    </h3>
+                    <div style="font-size: ${isMobile ? '14px' : '12px'}; opacity: 0.9; margin-top: 4px;">
+                        📍 ${location}
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <h4 style="margin: 0 0 10px 0; font-size: ${isMobile ? '15px' : '13px'}; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">
+                        ⛽ Current Prices
+                    </h4>
+                    ${priceElements || '<div style="color: #999; font-style: italic;">No price data available</div>'}
+                </div>
+                
+                <div style="font-size: ${isMobile ? '12px' : '11px'}; color: #888; border-top: 1px solid #f0f0f0; padding-top: 10px; display: flex; align-items: center;">
+                    <span style="margin-right: 5px;">🕐</span>
+                    <strong>Updated:</strong>&nbsp;${new Date(props.updated).toLocaleString() || 'Unknown'}
                 </div>
             </div>
         `;
@@ -183,14 +273,41 @@ map.on('load', function () {
             .addTo(map);
     });
 
-    // Change the cursor to a pointer when the mouse is over the stations layer
-    map.on('mouseenter', 'stations-layer', function () {
+    // Enhanced cursor and hover effects
+    map.on('mouseenter', 'stations-layer', function (e) {
+        map.getCanvas().style.cursor = 'pointer';
+        
+        // Highlight the hovered station
+        map.setPaintProperty('stations-layer', 'circle-stroke-width', [
+            'case',
+            ['==', ['get', 'title'], e.features[0].properties.title],
+            4, // Thicker stroke for hovered station
+            2  // Normal stroke for others
+        ]);
+    });
+
+    map.on('mouseleave', 'stations-layer', function () {
+        map.getCanvas().style.cursor = '';
+        
+        // Reset stroke width
+        map.setPaintProperty('stations-layer', 'circle-stroke-width', 2);
+    });
+    
+    // Also apply hover effects to labels
+    map.on('mouseenter', 'stations-labels', function () {
         map.getCanvas().style.cursor = 'pointer';
     });
 
-    // Change it back to a pointer when it leaves
-    map.on('mouseleave', 'stations-layer', function () {
+    map.on('mouseleave', 'stations-labels', function () {
         map.getCanvas().style.cursor = '';
+    });
+    
+    // Make labels clickable too
+    map.on('click', 'stations-labels', function (e) {
+        // Trigger the same popup as clicking on the circle
+        const feature = e.features[0];
+        const clickEvent = { features: [feature], lngLat: e.lngLat };
+        map.fire('click', { originalEvent: e.originalEvent, lngLat: e.lngLat, point: e.point, features: [feature] });
     });
 });
 
