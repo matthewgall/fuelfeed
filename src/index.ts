@@ -4,6 +4,7 @@ import Fuel from './fuel'
 import { PriceNormalizer } from './price-normalizer'
 import { CacheManager } from './cache-manager'
 import { CacheInvalidator } from './cache-invalidator'
+import { FuelCategorizer } from './fuel-categorizer'
 
 const router = AutoRouter()
 const responseData = {
@@ -153,20 +154,26 @@ router.get('/api/data.mapbox', async (request, env, context) => {
                 continue;
             }
             
-            // Process price data
+            // Process price data with fuel categorization
             let prices: any = [];
             let numericPrices: number[] = [];
             let fuelPrices: { [key: string]: number } = {};
             
             for (let fuel of Object.keys(stn.prices)) {
                 let price = stn.prices[fuel];
-                prices.push(PriceNormalizer.formatDisplayPrice(price, fuel));
                 
                 if (typeof price === 'number') {
                     const priceInPounds = price > 10 ? price / 100 : price;
                     numericPrices.push(priceInPounds);
                     fuelPrices[fuel] = priceInPounds;
                 }
+            }
+            
+            // Group fuels by category and create display strings
+            const groupedFuels = FuelCategorizer.groupFuelsByCategory(fuelPrices);
+            for (const [category, data] of Object.entries(groupedFuels)) {
+                const displayText = FuelCategorizer.formatFuelDisplay(category, data.price, data.originalType);
+                prices.push(displayText);
             }
             
             const lowestPrice = numericPrices.length > 0 ? Math.min(...numericPrices) : null;
@@ -188,27 +195,36 @@ router.get('/api/data.mapbox', async (request, env, context) => {
         if (stationCount >= maxStations) break;
     }
     
-    // Second pass: find best prices for each fuel type
-    const fuelTypes = new Set<string>();
+    // Second pass: find best prices for each fuel category
+    const fuelCategories = new Set<string>();
+    
+    // Group fuel types by category for each station
     validStations.forEach(station => {
-        Object.keys(station.fuelPrices).forEach(fuel => fuelTypes.add(fuel));
+        const groupedFuels = FuelCategorizer.groupFuelsByCategory(station.fuelPrices);
+        station.groupedFuels = groupedFuels;
+        Object.keys(groupedFuels).forEach(category => fuelCategories.add(category));
     });
     
-    const bestPrices: { [key: string]: { price: number, stations: any[] } } = {};
+    const bestPrices: { [key: string]: { price: number, stations: any[], originalType: string } } = {};
     
-    // Find lowest price for each fuel type
-    for (const fuel of fuelTypes) {
-        const stationsWithFuel = validStations.filter(station => 
-            station.fuelPrices[fuel] !== undefined
+    // Find lowest price for each fuel category
+    for (const category of fuelCategories) {
+        const stationsWithCategory = validStations.filter(station => 
+            station.groupedFuels[category] !== undefined
         );
         
-        if (stationsWithFuel.length > 0) {
-            const minPrice = Math.min(...stationsWithFuel.map(s => s.fuelPrices[fuel]));
-            const bestStations = stationsWithFuel.filter(s => s.fuelPrices[fuel] === minPrice);
+        if (stationsWithCategory.length > 0) {
+            const minPrice = Math.min(...stationsWithCategory.map(s => s.groupedFuels[category].price));
+            const bestStations = stationsWithCategory.filter(s => s.groupedFuels[category].price === minPrice);
             
-            bestPrices[fuel] = {
+            // Get the original fuel type for the best price
+            const bestStation = bestStations[0];
+            const originalType = bestStation.groupedFuels[category].originalType;
+            
+            bestPrices[category] = {
                 price: minPrice,
-                stations: bestStations
+                stations: bestStations,
+                originalType
             };
         }
     }
@@ -220,13 +236,13 @@ router.get('/api/data.mapbox', async (request, env, context) => {
         let isBestPrice = false;
         let bestFuelTypes: string[] = [];
         
-        // Check if this station has the best price for any fuel type
-        for (const [fuel, bestData] of Object.entries(bestPrices)) {
-            if (station.fuelPrices[fuel] === bestData.price) {
+        // Check if this station has the best price for any fuel category
+        for (const [category, bestData] of Object.entries(bestPrices)) {
+            if (station.groupedFuels[category] && station.groupedFuels[category].price === bestData.price) {
                 if (bestData.stations.length === 1) {
-                    // Single best station for this fuel
+                    // Single best station for this category
                     isBestPrice = true;
-                    bestFuelTypes.push(fuel);
+                    bestFuelTypes.push(FuelCategorizer.getCategoryDisplayName(category));
                 } else {
                     // Multiple stations with same price - check average price
                     const bestByAverage = bestData.stations.reduce((best, current) => 
@@ -235,7 +251,7 @@ router.get('/api/data.mapbox', async (request, env, context) => {
                     
                     if (station === bestByAverage) {
                         isBestPrice = true;
-                        bestFuelTypes.push(fuel);
+                        bestFuelTypes.push(FuelCategorizer.getCategoryDisplayName(category));
                     }
                 }
             }

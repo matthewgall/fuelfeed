@@ -229,16 +229,20 @@ map.on('load', function () {
         const brand = titleParts[0] || 'Unknown Station';
         const location = titleParts.slice(1).join(', ') || 'Location not available';
         
-        // Parse prices from description (format: "<strong>fueltype</strong> 145.9p")
+        // Parse prices from description (format: "⛽ Unleaded £1.45" or "🚛 Diesel (B7) £1.52")
         const prices = props.description.split('<br />');
         const priceElements = prices.map(price => {
-            // Extract fuel type from <strong> tags and price value
-            const fuelMatch = price.match(/<strong>(.*?)<\/strong>/);
-            const priceMatch = price.match(/(\d+\.?\d*)p/);
+            // Extract icon, fuel type, and price value from new format
+            const iconMatch = price.match(/^([⛽🚛💎])\s+/);
+            const fuelMatch = price.match(/([⛽🚛💎])\s+([A-Za-z\s]+?)(?:\s+\([^)]+\))?\s+£([\d.]+)/);
             
-            const fuel = fuelMatch ? fuelMatch[1] : '';
-            const priceInPence = priceMatch ? parseFloat(priceMatch[1]) : 0;
-            const priceInPounds = priceInPence / 100;
+            if (!fuelMatch) {
+                return ''; // Skip invalid entries
+            }
+            
+            const icon = fuelMatch[1];
+            const fuel = fuelMatch[2].trim();
+            const priceInPounds = parseFloat(fuelMatch[3]);
             
             let priceColor = '#333';
             
@@ -252,12 +256,15 @@ map.on('load', function () {
             const displayPrice = priceInPounds > 0 ? `£${priceInPounds.toFixed(2)}` : 'N/A';
             
             return `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #f0f0f0;">
-                    <span style="font-weight: 500; color: #555;">${fuel || 'Unknown Fuel'}</span>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f0f0f0;">
+                    <span style="font-weight: 500; color: #555; display: flex; align-items: center;">
+                        <span style="margin-right: 8px; font-size: 16px;">${icon}</span>
+                        ${fuel || 'Unknown Fuel'}
+                    </span>
                     <span style="font-weight: bold; color: ${priceColor}; font-size: ${isMobile ? '16px' : '14px'};">${displayPrice}</span>
                 </div>
             `;
-        }).join('');
+        }).filter(element => element !== '').join('');
         
         const content = `
             <div style="max-width: ${isMobile ? '300px' : '340px'}; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
