@@ -19,6 +19,7 @@ const CACHE_DURATIONS = {
 const STATIC_ASSETS = [
     "/",
     "/index.html",
+    "/css/styles.css",
     "/js/app.js",
     "/js/station-cache.js",
     "/js/worker.js",
