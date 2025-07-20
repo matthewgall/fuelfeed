@@ -52,6 +52,11 @@ function debounce(func, wait) {
 const stationCache = new StationCache();
 let currentRequest = null;
 
+// Popup recursion prevention
+let popupCreationInProgress = false;
+let popupErrorCount = 0;
+const MAX_POPUP_ERRORS = 3;
+
 // Function to get current map bounds as object
 function getMapBounds() {
     try {
@@ -487,6 +492,14 @@ map.on('load', function () {
         if (isLowEndMobile) {
             requestAnimationFrame(monitorPerformance);
         }
+        
+        // Reset popup error count periodically to allow recovery
+        setInterval(() => {
+            if (popupErrorCount > 0) {
+                popupErrorCount = Math.max(0, popupErrorCount - 1);
+                console.log('Popup error count reset to:', popupErrorCount);
+            }
+        }, 30000); // Reset one error every 30 seconds
     } else {
         // Desktop cleanup (original frequency)
         setInterval(() => {
@@ -494,134 +507,113 @@ map.on('load', function () {
         }, 5 * 60 * 1000);
     }
 
-    // Mobile-optimized popup for station info
+    // Mobile-optimized popup for station info with recursion prevention
     map.on('click', 'stations-layer', function (e) {
+        // Prevent recursion and limit errors
+        if (popupCreationInProgress) {
+            console.warn('Popup creation already in progress, skipping');
+            return;
+        }
+        
+        if (popupErrorCount >= MAX_POPUP_ERRORS) {
+            console.error('Too many popup errors, disabling popup creation');
+            return;
+        }
+        
+        popupCreationInProgress = true;
+        
         try {
+            // Basic validation first
+            if (!e || !e.features || !e.features[0]) {
+                console.warn('Invalid click event or no features');
+                return;
+            }
+            
             const feature = e.features[0];
-            if (!feature || !feature.properties) return;
+            if (!feature.properties) {
+                console.warn('Feature has no properties');
+                return;
+            }
             
             const props = feature.properties;
             
-            // Close any existing popups
-            const existingPopups = document.querySelectorAll('.mapboxgl-popup');
-            existingPopups.forEach(popup => popup.remove());
-            
-            // Create enhanced popup content with better styling
-            // Use global mobile detection instead of redeclaring
-            
-            // Simplified parsing for mobile performance
-            const titleParts = props.title.split(', ');
-            const brand = titleParts[0] || 'Station';
-            const location = titleParts.slice(1).join(', ') || 'Location not available';
-            
-            // Simple extraction without complex regex
-            let priceContent = '';
-            if (props.description) {
-                const prices = props.description.split('<br />');
-                const priceItems = [];
-                
-                for (let i = 0; i < Math.min(prices.length, 4); i++) { // Limit to 4 items
-                    const price = prices[i];
-                    if (price && price.trim()) {
-                        // Simple matching for mobile
-                        const match = price.match(/([⛽⚫💎])\s+([^£]+)£([\d.]+)/);
-                        if (match) {
-                            const icon = match[1];
-                            const fuel = match[2].trim().replace(/\([^)]*\)/g, '').trim();
-                            const priceVal = parseFloat(match[3]);
-                            
-                            let color = '#333';
-                            if (priceVal < 1.40) color = '#00C851';
-                            else if (priceVal < 1.50) color = '#ffbb33';
-                            else color = '#FF4444';
-                            
-                            priceItems.push(`
-                                <div style="display: flex; justify-content: space-between; padding: 4px 0;">
-                                    <span>${icon} ${fuel}</span>
-                                    <span style="color: ${color}; font-weight: bold;">£${priceVal.toFixed(2)}</span>
-                                </div>
-                            `);
-                        }
+            // Safely close existing popups
+            try {
+                const existingPopups = document.querySelectorAll('.mapboxgl-popup');
+                existingPopups.forEach(popup => {
+                    if (popup && popup.remove) {
+                        popup.remove();
                     }
-                }
-                priceContent = priceItems.join('');
+                });
+            } catch (cleanupError) {
+                console.warn('Error cleaning up existing popups:', cleanupError);
             }
             
+            // Get coordinates safely
+            let coordinates = null;
+            if (e.lngLat && typeof e.lngLat.lng === 'number' && typeof e.lngLat.lat === 'number') {
+                coordinates = e.lngLat;
+            } else if (feature.geometry && feature.geometry.coordinates && Array.isArray(feature.geometry.coordinates)) {
+                const coords = feature.geometry.coordinates;
+                if (coords.length >= 2 && typeof coords[0] === 'number' && typeof coords[1] === 'number') {
+                    coordinates = { lng: coords[0], lat: coords[1] };
+                }
+            }
+            
+            if (!coordinates) {
+                console.error('No valid coordinates found for popup');
+                return;
+            }
+            
+            // Create simple content to avoid recursion in complex parsing
+            const brand = (props.title || 'Station').split(',')[0];
+            const hasPrice = props.description && props.description.includes('£');
+            
             const content = `
-                <div style="max-width: ${isLowEndMobile ? '260px' : isMobile ? '280px' : '320px'}; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
-                    <div style="background: ${props.is_best_price ? '#FFD700' : '#667eea'}; color: ${props.is_best_price ? '#333' : 'white'}; padding: 12px; margin: -15px -15px 12px -15px; border-radius: 6px 6px 0 0;">
-                        <h3 style="margin: 0; font-size: ${isLowEndMobile ? '14px' : isMobile ? '16px' : '15px'}; font-weight: 600;">
-                            ${props.is_best_price ? '🏆 ' : ''}${brand}
-                        </h3>
-                        <div style="font-size: ${isLowEndMobile ? '10px' : isMobile ? '12px' : '11px'}; opacity: 0.9; margin-top: 4px;">
-                            📍 ${location}
-                        </div>
-                    </div>
-                    
-                    <div style="margin-bottom: 12px;">
-                        <h4 style="margin: 0 0 8px 0; font-size: ${isLowEndMobile ? '11px' : isMobile ? '13px' : '12px'}; color: #666;">
-                            ⛽ Prices
-                        </h4>
-                        ${priceContent || '<div style="color: #999;">No price data</div>'}
-                    </div>
-                    
-                    <div style="font-size: ${isLowEndMobile ? '8px' : isMobile ? '10px' : '9px'}; color: #888; border-top: 1px solid #f0f0f0; padding-top: 8px;">
-                        🕐 Updated: ${(() => {
-                            try {
-                                if (!props.updated || props.updated === 'Unknown') return 'Unknown';
-                                const date = new Date(props.updated);
-                                return isNaN(date.getTime()) ? props.updated : date.toLocaleDateString();
-                            } catch (e) {
-                                return 'Unknown';
-                            }
-                        })()}
-                    </div>
+                <div style="max-width: 300px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 10px;">
+                    <h3 style="margin: 0 0 8px 0; font-size: 14px; color: #333;">
+                        ${props.is_best_price ? '🏆 ' : ''}${brand}
+                    </h3>
+                    ${hasPrice ? '<div style="font-size: 12px; color: #666;">Click for price details</div>' : '<div style="font-size: 12px; color: #999;">No price data available</div>'}
                 </div>
             `;
             
-            // Validate coordinates before creating popup
-            if (!e.lngLat || typeof e.lngLat.lng !== 'number' || typeof e.lngLat.lat !== 'number') {
-                console.error('Invalid coordinates for popup:', e.lngLat);
-                
-                // Fallback: try to get coordinates from feature geometry
-                if (feature.geometry && feature.geometry.coordinates) {
-                    const coords = feature.geometry.coordinates;
-                    e.lngLat = { lng: coords[0], lat: coords[1] };
-                    console.log('Using feature coordinates as fallback:', e.lngLat);
-                } else {
-                    console.error('No valid coordinates available for popup');
-                    return;
-                }
-            }
-            
+            // Create popup with minimal options to avoid MapTiler issues
             try {
-                new maptilersdk.Popup({
+                const popup = new maptilersdk.Popup({
                     closeButton: true,
                     closeOnClick: true,
-                    closeOnMove: false,
-                    maxWidth: isLowEndMobile ? '90vw' : isMobile ? '80vw' : '350px',
-                    anchor: isMobile ? 'bottom' : 'auto'
-                })
-                    .setLngLat(e.lngLat)
-                    .setHTML(content)
-                    .addTo(map);
-            } catch (popupError) {
-                console.error('Error creating popup:', popupError);
-            }
+                    maxWidth: '300px'
+                });
                 
-        } catch (error) {
-            console.warn('Popup creation failed:', error);
-            trackPerformanceIssue();
-            
-            // Fallback: show simple alert on mobile if popup fails
-            if (window.innerWidth <= 480) {
-                const props = e.features[0]?.properties;
-                if (props?.title) {
+                if (popup.setLngLat && popup.setHTML && popup.addTo) {
+                    popup.setLngLat(coordinates)
+                          .setHTML(content)
+                          .addTo(map);
+                } else {
+                    console.error('Popup methods not available');
+                }
+            } catch (popupError) {
+                console.error('MapTiler popup creation failed:', popupError);
+                popupErrorCount++;
+                
+                // Simple fallback for mobile
+                if (isLowEndMobile && props.title) {
                     setTimeout(() => {
-                        alert(`${props.title}\n${props.description?.replace(/<br\s*\/?>/gi, '\n') || 'No price data'}`);
+                        alert(props.title);
                     }, 100);
                 }
             }
+                
+        } catch (error) {
+            console.error('Popup handler failed:', error);
+            popupErrorCount++;
+            trackPerformanceIssue();
+        } finally {
+            // Always reset the flag to prevent permanent blocking
+            setTimeout(() => {
+                popupCreationInProgress = false;
+            }, 100);
         }
     });
 
