@@ -16,6 +16,7 @@
 - **🔄 Real-time Updates** - Aggregates data from 15+ major UK fuel retailers every 30 minutes
 - **🎯 Smart Filtering** - Fuel type categorization (Unleaded, Diesel, Premium) with color-coded pricing
 - **🏆 Competitive Analysis** - Advanced algorithms for best price detection with tie-breaking logic
+- **📍 Viewport Persistence** - Remembers your last viewed location and returns you there on reload
 
 ## 🚀 Quick Start
 
@@ -137,6 +138,12 @@ Super, V-Power → Premium
 - **Tie-breaking logic** using average fuel prices
 - **Geographic clustering** for regional best prices
 
+#### **Viewport Persistence**
+- **Auto-save** - Saves map position after 1 second of inactivity
+- **Validation** - Ensures coordinates are within UK bounds
+- **Expiration** - Stored locations expire after 30 days
+- **Fallback** - Graceful degradation to default UK view
+
 ### API Endpoints
 
 ```bash
@@ -163,6 +170,14 @@ npm run test
 node test/test-cache-performance.mjs
 node test/test-normalizer.mjs
 node test/test-mirror.mjs
+```
+
+### Debugging
+
+```bash
+# Browser console commands for viewport management
+resetViewport()        # Clear saved location and reload
+getViewportInfo()      # View stored vs current viewport
 ```
 
 ### Data Mirroring

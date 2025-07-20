@@ -25,14 +25,83 @@ if (!maptilersdk.Map || !maptilersdk.Popup) {
 const isMobile = window.innerWidth <= 768; // Broader mobile detection
 const isLowEndMobile = window.innerWidth <= 480 || navigator.hardwareConcurrency <= 2;
 
+// Viewport persistence system
+class ViewportPersistence {
+    static STORAGE_KEY = 'fuelfeed-viewport';
+    static DEFAULT_VIEWPORT = {
+        center: [-2.0, 53.5], // Center on UK
+        zoom: isMobile ? 7 : 6
+    };
+    
+    static saveViewport(center, zoom) {
+        try {
+            const viewport = {
+                center: [center.lng, center.lat],
+                zoom: zoom,
+                timestamp: Date.now()
+            };
+            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(viewport));
+            console.log('Viewport saved:', viewport);
+        } catch (error) {
+            console.warn('Failed to save viewport:', error);
+        }
+    }
+    
+    static loadViewport() {
+        try {
+            const stored = localStorage.getItem(this.STORAGE_KEY);
+            if (!stored) return this.DEFAULT_VIEWPORT;
+            
+            const viewport = JSON.parse(stored);
+            
+            // Check if stored viewport is too old (older than 30 days)
+            const maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
+            if (Date.now() - viewport.timestamp > maxAge) {
+                localStorage.removeItem(this.STORAGE_KEY);
+                return this.DEFAULT_VIEWPORT;
+            }
+            
+            // Validate coordinates are within reasonable bounds (UK area)
+            const [lng, lat] = viewport.center;
+            if (lng < -8 || lng > 2 || lat < 49 || lat > 61) {
+                console.warn('Stored viewport outside UK bounds, using default');
+                return this.DEFAULT_VIEWPORT;
+            }
+            
+            // Validate zoom level
+            if (viewport.zoom < 4 || viewport.zoom > 18) {
+                viewport.zoom = this.DEFAULT_VIEWPORT.zoom;
+            }
+            
+            console.log('Viewport loaded:', viewport);
+            return viewport;
+        } catch (error) {
+            console.warn('Failed to load viewport:', error);
+            return this.DEFAULT_VIEWPORT;
+        }
+    }
+    
+    static clearViewport() {
+        try {
+            localStorage.removeItem(this.STORAGE_KEY);
+            console.log('Viewport cleared');
+        } catch (error) {
+            console.warn('Failed to clear viewport:', error);
+        }
+    }
+}
+
+// Load saved viewport or use defaults
+const savedViewport = ViewportPersistence.loadViewport();
+
 // Mobile-optimized map configuration with v3.6.0 compatibility
 var map;
 try {
     map = new maptilersdk.Map({
         container: 'map',
         style: maptilersdk.MapStyle.STREETS,
-        center: [-2.0, 53.5], // Center on UK
-        zoom: isMobile ? 7 : 6, // Start more zoomed in on mobile
+        center: savedViewport.center,
+        zoom: savedViewport.zoom,
         minZoom: isMobile ? 6 : 4, // Prevent zooming out too far on mobile
         maxZoom: isMobile ? 14 : 18, // Limit max zoom on mobile
         // Mobile-friendly interaction options
@@ -952,3 +1021,57 @@ setTimeout(() => {
     const stats = stationCache.getStats();
     console.log('Cache initialized:', stats);
 }, 1000);
+
+// Add viewport persistence event listeners
+let viewportSaveTimeout = null;
+
+function saveCurrentViewport() {
+    if (!map || !map.getCenter || !map.getZoom) return;
+    
+    try {
+        const center = map.getCenter();
+        const zoom = map.getZoom();
+        ViewportPersistence.saveViewport(center, zoom);
+    } catch (error) {
+        console.warn('Failed to save current viewport:', error);
+    }
+}
+
+// Debounced viewport saving to avoid excessive localStorage writes
+function debouncedSaveViewport() {
+    clearTimeout(viewportSaveTimeout);
+    viewportSaveTimeout = setTimeout(saveCurrentViewport, 1000); // Save 1 second after movement stops
+}
+
+// Listen for map movement events
+map.on('moveend', debouncedSaveViewport);
+map.on('zoomend', debouncedSaveViewport);
+
+// Save viewport when page is about to unload
+window.addEventListener('beforeunload', saveCurrentViewport);
+
+// Save viewport when tab becomes hidden (mobile background)
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        saveCurrentViewport();
+    }
+});
+
+console.log('Viewport persistence initialized');
+
+// Global functions for viewport management (useful for debugging)
+window.resetViewport = () => {
+    ViewportPersistence.clearViewport();
+    location.reload();
+};
+
+window.getViewportInfo = () => {
+    const stored = ViewportPersistence.loadViewport();
+    const current = {
+        center: map.getCenter(),
+        zoom: map.getZoom()
+    };
+    console.log('Stored viewport:', stored);
+    console.log('Current viewport:', current);
+    return { stored, current };
+};
