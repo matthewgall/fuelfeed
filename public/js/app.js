@@ -214,24 +214,32 @@ map.on('load', function () {
         const brand = titleParts[0] || 'Unknown Station';
         const location = titleParts.slice(1).join(', ') || 'Location not available';
         
-        // Parse prices from description
+        // Parse prices from description (format: "<strong>fueltype</strong> 145.9p")
         const prices = props.description.split('<br />');
         const priceElements = prices.map(price => {
-            const [fuel, priceValue] = price.split(': ');
-            const numericPrice = parseFloat(priceValue?.replace('£', '') || '0');
+            // Extract fuel type from <strong> tags and price value
+            const fuelMatch = price.match(/<strong>(.*?)<\/strong>/);
+            const priceMatch = price.match(/(\d+\.?\d*)p/);
+            
+            const fuel = fuelMatch ? fuelMatch[1] : '';
+            const priceInPence = priceMatch ? parseFloat(priceMatch[1]) : 0;
+            const priceInPounds = priceInPence / 100;
+            
             let priceColor = '#333';
             
-            // Color code prices
-            if (numericPrice > 0) {
-                if (numericPrice < 1.40) priceColor = '#00C851'; // Green
-                else if (numericPrice < 1.50) priceColor = '#ffbb33'; // Amber
+            // Color code prices based on pounds
+            if (priceInPounds > 0) {
+                if (priceInPounds < 1.40) priceColor = '#00C851'; // Green
+                else if (priceInPounds < 1.50) priceColor = '#ffbb33'; // Amber
                 else priceColor = '#FF4444'; // Red
             }
             
+            const displayPrice = priceInPounds > 0 ? `£${priceInPounds.toFixed(2)}` : 'N/A';
+            
             return `
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #f0f0f0;">
-                    <span style="font-weight: 500; color: #555;">${fuel || ''}</span>
-                    <span style="font-weight: bold; color: ${priceColor}; font-size: ${isMobile ? '16px' : '14px'};">${priceValue || 'N/A'}</span>
+                    <span style="font-weight: 500; color: #555;">${fuel || 'Unknown Fuel'}</span>
+                    <span style="font-weight: bold; color: ${priceColor}; font-size: ${isMobile ? '16px' : '14px'};">${displayPrice}</span>
                 </div>
             `;
         }).join('');
