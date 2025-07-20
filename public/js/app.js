@@ -586,9 +586,13 @@ map.on('load', function () {
         if (popupClickCount % 4 === 0) {
             console.log('Performing periodic popup cleanup');
             cleanupAllPopups();
-            // Brief pause to let cleanup complete
+            // Brief pause to let cleanup complete, but preserve the event data
+            const eventData = {
+                features: e.features,
+                lngLat: e.lngLat
+            };
             setTimeout(() => {
-                handlePopupClick(e);
+                handlePopupClick(eventData);
             }, 50);
             return;
         }
@@ -629,21 +633,43 @@ map.on('load', function () {
             // Clean up existing popups using our comprehensive function
             cleanupAllPopups();
             
-            // Get coordinates safely
+            // Get coordinates safely with multiple fallback methods
             let coordinates = null;
+            
+            // Method 1: Use event coordinates
             if (e.lngLat && typeof e.lngLat.lng === 'number' && typeof e.lngLat.lat === 'number') {
-                coordinates = e.lngLat;
-            } else if (feature.geometry && feature.geometry.coordinates && Array.isArray(feature.geometry.coordinates)) {
+                coordinates = { lng: e.lngLat.lng, lat: e.lngLat.lat };
+                console.log('Using event coordinates:', coordinates);
+            } 
+            // Method 2: Use feature geometry
+            else if (feature.geometry && feature.geometry.coordinates && Array.isArray(feature.geometry.coordinates)) {
                 const coords = feature.geometry.coordinates;
                 if (coords.length >= 2 && typeof coords[0] === 'number' && typeof coords[1] === 'number') {
                     coordinates = { lng: coords[0], lat: coords[1] };
+                    console.log('Using feature geometry coordinates:', coordinates);
+                }
+            }
+            // Method 3: Try to convert pixel coordinates if available
+            else if (e.point && map.unproject) {
+                try {
+                    const unprojected = map.unproject(e.point);
+                    if (unprojected && typeof unprojected.lng === 'number' && typeof unprojected.lat === 'number') {
+                        coordinates = { lng: unprojected.lng, lat: unprojected.lat };
+                        console.log('Using unprojected coordinates:', coordinates);
+                    }
+                } catch (unprojectError) {
+                    console.warn('Failed to unproject coordinates:', unprojectError);
                 }
             }
             
             if (!coordinates) {
                 console.error('No valid coordinates found for popup');
+                console.log('Event lngLat:', e.lngLat);
+                console.log('Feature geometry:', feature.geometry);
                 return;
             }
+            
+            console.log('Using coordinates for popup:', coordinates);
             
             // Safe price parsing with error handling
             const titleParts = (props.title || 'Station').split(', ');
@@ -776,6 +802,13 @@ map.on('load', function () {
                 if (!popup || typeof popup.setLngLat !== 'function' || typeof popup.setHTML !== 'function' || typeof popup.addTo !== 'function') {
                     throw new Error('Invalid popup object or methods');
                 }
+                
+                // Validate coordinates one more time before setting
+                if (!coordinates || typeof coordinates.lng !== 'number' || typeof coordinates.lat !== 'number') {
+                    throw new Error('Invalid coordinates at popup creation: ' + JSON.stringify(coordinates));
+                }
+                
+                console.log('Setting popup coordinates:', coordinates);
                 
                 // Set up popup with careful error handling
                 popup.setLngLat(coordinates);
