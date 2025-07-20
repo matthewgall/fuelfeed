@@ -596,16 +596,58 @@ map.on('load', function () {
                 return;
             }
             
-            // Create simple content to avoid recursion in complex parsing
-            const brand = (props.title || 'Station').split(',')[0];
-            const hasPrice = props.description && props.description.includes('£');
+            // Safe price parsing with error handling
+            const titleParts = (props.title || 'Station').split(', ');
+            const brand = titleParts[0] || 'Station';
+            const location = titleParts.slice(1).join(', ') || '';
+            
+            let priceContent = '';
+            if (props.description) {
+                try {
+                    const prices = props.description.split('<br />');
+                    const priceItems = [];
+                    
+                    for (let i = 0; i < Math.min(prices.length, 3); i++) { // Limit to 3 for safety
+                        const price = prices[i];
+                        if (price && price.trim()) {
+                            const match = price.match(/([⛽⚫💎])\s+([^£]+)£([\d.]+)/);
+                            if (match) {
+                                const icon = match[1];
+                                const fuel = match[2].trim().replace(/\([^)]*\)/g, '').trim();
+                                const priceVal = parseFloat(match[3]);
+                                
+                                if (!isNaN(priceVal)) {
+                                    let color = '#333';
+                                    if (priceVal < 1.40) color = '#00C851';
+                                    else if (priceVal < 1.50) color = '#ffbb33';
+                                    else color = '#FF4444';
+                                    
+                                    priceItems.push(`
+                                        <div style="display: flex; justify-content: space-between; margin: 3px 0;">
+                                            <span style="font-size: 12px;">${icon} ${fuel}</span>
+                                            <span style="color: ${color}; font-weight: bold; font-size: 12px;">£${priceVal.toFixed(2)}</span>
+                                        </div>
+                                    `);
+                                }
+                            }
+                        }
+                    }
+                    priceContent = priceItems.join('');
+                } catch (parseError) {
+                    console.warn('Price parsing failed:', parseError);
+                    priceContent = '<div style="font-size: 12px; color: #999;">Price data unavailable</div>';
+                }
+            }
             
             const content = `
                 <div style="max-width: 300px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 10px;">
-                    <h3 style="margin: 0 0 8px 0; font-size: 14px; color: #333;">
+                    <h3 style="margin: 0 0 6px 0; font-size: 14px; color: #333;">
                         ${props.is_best_price ? '🏆 ' : ''}${brand}
                     </h3>
-                    ${hasPrice ? '<div style="font-size: 12px; color: #666;">Click for price details</div>' : '<div style="font-size: 12px; color: #999;">No price data available</div>'}
+                    ${location ? `<div style="font-size: 10px; color: #666; margin-bottom: 8px;">📍 ${location}</div>` : ''}
+                    <div style="margin-top: 6px;">
+                        ${priceContent || '<div style="font-size: 12px; color: #999;">No price data available</div>'}
+                    </div>
                 </div>
             `;
             
