@@ -691,7 +691,7 @@ map.on('load', function () {
                     for (let i = 0; i < Math.min(prices.length, 3); i++) { // Limit to 3 for safety
                         const price = prices[i];
                         if (price && price.trim()) {
-                            const match = price.match(/([⛽⚫💎])\s+([^£]+)£([\d.]+)/);
+                            const match = price.match(/([⛽💎])\s+([^£]+)£([\d.]+)/);
                             if (match) {
                                 const icon = match[1];
                                 const fuel = match[2].trim().replace(/\([^)]*\)/g, '').trim();
@@ -778,7 +778,7 @@ map.on('load', function () {
                             letter-spacing: 0.5px;
                             font-weight: 600;
                         ">
-                            ⛽ Current Prices
+                            Current Prices
                         </h4>
                         <div style="margin-top: 8px;">
                             ${priceContent || '<div style="font-size: 12px; color: #999; font-style: italic;">No price data available</div>'}
