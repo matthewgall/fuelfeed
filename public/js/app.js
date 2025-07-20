@@ -83,10 +83,42 @@ function debounce(func, wait) {
 const stationCache = new StationCache();
 let currentRequest = null;
 
-// Popup recursion prevention
+// Popup management and error prevention
 let popupCreationInProgress = false;
 let popupErrorCount = 0;
 const MAX_POPUP_ERRORS = 3;
+let activePopup = null;
+let popupClickCount = 0;
+
+// Comprehensive popup cleanup function
+function cleanupAllPopups() {
+    try {
+        // Close active popup if exists
+        if (activePopup && activePopup.remove) {
+            activePopup.remove();
+        }
+        activePopup = null;
+        
+        // Remove all popup DOM elements
+        const allPopups = document.querySelectorAll('.maplibregl-popup, .mapboxgl-popup, .fuel-station-popup');
+        allPopups.forEach(popup => {
+            if (popup && popup.parentNode) {
+                popup.parentNode.removeChild(popup);
+            }
+        });
+        
+        // Force cleanup of any orphaned popup elements
+        const popupContainers = document.querySelectorAll('[class*="popup"]');
+        popupContainers.forEach(container => {
+            if (container.classList.toString().includes('popup') && container.parentNode) {
+                container.parentNode.removeChild(container);
+            }
+        });
+        
+    } catch (cleanupError) {
+        console.warn('Popup cleanup error:', cleanupError);
+    }
+}
 
 // Function to get current map bounds as object
 function getMapBounds() {
@@ -530,6 +562,13 @@ map.on('load', function () {
                 popupErrorCount = Math.max(0, popupErrorCount - 1);
                 console.log('Popup error count reset to:', popupErrorCount);
             }
+            
+            // Periodic deep cleanup to prevent memory leaks
+            if (popupClickCount > 10) {
+                console.log('Performing deep popup cleanup');
+                cleanupAllPopups();
+                popupClickCount = 0;
+            }
         }, 30000); // Reset one error every 30 seconds
     } else {
         // Desktop cleanup (original frequency)
@@ -538,8 +577,27 @@ map.on('load', function () {
         }, 5 * 60 * 1000);
     }
 
-    // Mobile-optimized popup for station info with recursion prevention
+    // Mobile-optimized popup for station info with improved state management
     map.on('click', 'stations-layer', function (e) {
+        // Track popup clicks and force cleanup periodically
+        popupClickCount++;
+        
+        // Force cleanup every 4 clicks to prevent state corruption
+        if (popupClickCount % 4 === 0) {
+            console.log('Performing periodic popup cleanup');
+            cleanupAllPopups();
+            // Brief pause to let cleanup complete
+            setTimeout(() => {
+                handlePopupClick(e);
+            }, 50);
+            return;
+        }
+        
+        handlePopupClick(e);
+    });
+    
+    // Separate popup handling function for better control
+    function handlePopupClick(e) {
         // Prevent recursion and limit errors
         if (popupCreationInProgress) {
             console.warn('Popup creation already in progress, skipping');
@@ -568,17 +626,8 @@ map.on('load', function () {
             
             const props = feature.properties;
             
-            // Safely close existing popups
-            try {
-                const existingPopups = document.querySelectorAll('.mapboxgl-popup');
-                existingPopups.forEach(popup => {
-                    if (popup && popup.remove) {
-                        popup.remove();
-                    }
-                });
-            } catch (cleanupError) {
-                console.warn('Error cleaning up existing popups:', cleanupError);
-            }
+            // Clean up existing popups using our comprehensive function
+            cleanupAllPopups();
             
             // Get coordinates safely
             let coordinates = null;
@@ -706,8 +755,13 @@ map.on('load', function () {
                 </div>
             `;
             
-            // Create popup with v3.6.0 compatible options
+            // Create popup with v3.6.0 compatible options and better error handling
             try {
+                // Ensure we have valid MapTiler SDK
+                if (!maptilersdk || !maptilersdk.Popup) {
+                    throw new Error('MapTiler SDK not available');
+                }
+                
                 const popup = new maptilersdk.Popup({
                     closeButton: true,
                     closeOnClick: true,
@@ -718,16 +772,34 @@ map.on('load', function () {
                     className: 'fuel-station-popup'
                 });
                 
-                if (popup.setLngLat && popup.setHTML && popup.addTo) {
-                    popup.setLngLat(coordinates)
-                          .setHTML(content)
-                          .addTo(map);
-                } else {
-                    console.error('Popup methods not available');
+                // Verify popup object is valid
+                if (!popup || typeof popup.setLngLat !== 'function' || typeof popup.setHTML !== 'function' || typeof popup.addTo !== 'function') {
+                    throw new Error('Invalid popup object or methods');
                 }
+                
+                // Set up popup with careful error handling
+                popup.setLngLat(coordinates);
+                popup.setHTML(content);
+                popup.addTo(map);
+                
+                // Track the active popup
+                activePopup = popup;
+                
+                // Add event listener for when popup is closed
+                popup.on('close', () => {
+                    if (activePopup === popup) {
+                        activePopup = null;
+                    }
+                });
+                
+                console.log('Popup created successfully');
+                
             } catch (popupError) {
                 console.error('MapTiler popup creation failed:', popupError);
                 popupErrorCount++;
+                
+                // Force cleanup on error
+                cleanupAllPopups();
                 
                 // Simple fallback for mobile
                 if (isLowEndMobile && props.title) {
@@ -741,13 +813,16 @@ map.on('load', function () {
             console.error('Popup handler failed:', error);
             popupErrorCount++;
             trackPerformanceIssue();
+            
+            // Force cleanup on error
+            cleanupAllPopups();
         } finally {
             // Always reset the flag to prevent permanent blocking
             setTimeout(() => {
                 popupCreationInProgress = false;
             }, 100);
         }
-    });
+    }
 
     // Simplified hover effects for mobile performance
     if (!isMobile) {
