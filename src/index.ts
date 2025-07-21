@@ -35,8 +35,8 @@ function getCacheTTL(env: any) {
 async function getCachedPriceThresholds(env: any) {
     const analysis: any = {};
     
-    // Retrieve cached thresholds for each fuel type
-    const fuelTypes = ['unleaded', 'diesel', 'premium'];
+    // Retrieve cached thresholds for each fuel type (updated for new categorization)
+    const fuelTypes = ['unleaded', 'super_unleaded', 'diesel', 'super_diesel', 'lpg'];
     for (const fuelType of fuelTypes) {
         const cached = await env.KV.get(`price-threshold-${fuelType}`);
         if (cached) {

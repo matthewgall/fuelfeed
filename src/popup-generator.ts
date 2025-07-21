@@ -3,6 +3,7 @@
  */
 import { PRICE_THRESHOLDS } from './constants'
 import { DynamicPricing, FuelPriceAnalysis } from './dynamic-pricing'
+import { FuelCategorizer } from './fuel-categorizer'
 export class PopupGenerator {
     /**
      * Generate complete popup HTML for a fuel station
@@ -151,11 +152,9 @@ export class PopupGenerator {
      * Map fuel display name to category for dynamic pricing
      */
     private static mapFuelToCategory(fuelDisplayName: string): string {
-        const normalized = fuelDisplayName.toLowerCase();
-        if (/unleaded|petrol|e5|e10/.test(normalized)) return 'unleaded';
-        if (/diesel|gasoil|b7/.test(normalized)) return 'diesel';
-        if (/premium|super|v-power|momentum|ultimate/.test(normalized)) return 'premium';
-        return 'unleaded'; // Default fallback
+        // Use the existing FuelCategorizer logic
+        const category = FuelCategorizer.categorizeFuelType(fuelDisplayName);
+        return category ? category.name : 'unleaded'; // Default fallback
     }
 
     /**

@@ -14,7 +14,11 @@ export interface PriceThresholds {
 
 export interface FuelPriceAnalysis {
     unleaded?: PriceThresholds;
+    super_unleaded?: PriceThresholds;
     diesel?: PriceThresholds;
+    super_diesel?: PriceThresholds;
+    lpg?: PriceThresholds;
+    // Keep legacy premium for backward compatibility during migration
     premium?: PriceThresholds;
 }
 
