@@ -218,9 +218,10 @@ router.get('/api/data.mapbox', async (request, env, _context) => {
                 }
             }
             
-            // Group fuels by category and create display strings
+            // Group fuels by category and create display strings in consistent order
             const groupedFuels = FuelCategorizer.groupFuelsByCategory(fuelPrices);
-            for (const [category, data] of Object.entries(groupedFuels)) {
+            const orderedFuels = FuelCategorizer.getOrderedFuelEntries(groupedFuels);
+            for (const [category, data] of orderedFuels) {
                 const displayText = FuelCategorizer.formatFuelDisplay(category, data.price, data.originalType);
                 prices.push(displayText);
             }
@@ -416,9 +417,10 @@ router.get('/api/station/:stationId', async (request, env, _context) => {
         }
     }
     
-    // Group fuels by category and create display strings
+    // Group fuels by category and create display strings in consistent order
     const groupedFuels = FuelCategorizer.groupFuelsByCategory(fuelPrices);
-    for (const [category, data] of Object.entries(groupedFuels)) {
+    const orderedFuels = FuelCategorizer.getOrderedFuelEntries(groupedFuels);
+    for (const [category, data] of orderedFuels) {
         const displayText = FuelCategorizer.formatFuelDisplay(category, data.price, data.originalType);
         prices.push(displayText);
     }

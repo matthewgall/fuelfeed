@@ -1,7 +1,8 @@
 /// <reference path="../worker-configuration.d.ts" />
 import { BrandStandardizer } from './brand-standardizer'
 import { PopupGenerator } from './popup-generator'
-import { CACHE_TTL, MAP_CONFIG } from './constants'
+import { FuelCategorizer } from './fuel-categorizer'
+import { CACHE_TTL, MAP_CONFIG, PRICE_THRESHOLDS } from './constants'
 
 export interface CacheConfig {
     defaultTtl: number;
@@ -223,9 +224,26 @@ export class CacheManager {
                 const lat = stn.location.latitude;
                 
                 if (lng >= bounds.west && lng <= bounds.east && lat >= bounds.south && lat <= bounds.north) {
-                    let prices: any = [];
+                    // Process fuel prices with consistent ordering
+                    let numericPrices: number[] = [];
+                    let fuelPrices: { [key: string]: number } = {};
+                    
                     for (let fuel of Object.keys(stn.prices)) {
-                        prices.push(`${fuel}: £${stn.prices[fuel]}`);
+                        let price = stn.prices[fuel];
+                        if (typeof price === 'number') {
+                            const priceInPounds = price > PRICE_THRESHOLDS.PENCE_CONVERSION ? price / 100 : price;
+                            numericPrices.push(priceInPounds);
+                            fuelPrices[fuel] = priceInPounds;
+                        }
+                    }
+                    
+                    // Group fuels by category and create display strings in consistent order
+                    const groupedFuels = FuelCategorizer.groupFuelsByCategory(fuelPrices);
+                    const orderedFuels = FuelCategorizer.getOrderedFuelEntries(groupedFuels);
+                    let prices: any = [];
+                    for (const [category, data] of orderedFuels) {
+                        const displayText = FuelCategorizer.formatFuelDisplay(category, data.price, data.originalType);
+                        prices.push(displayText);
                     }
                     
                     features.push({

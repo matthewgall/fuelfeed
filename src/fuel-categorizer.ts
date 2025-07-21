@@ -99,4 +99,25 @@ export class FuelCategorizer {
     static getAllCategories(): FuelCategory[] {
         return [...this.FUEL_CATEGORIES];
     }
+
+    static getOrderedFuelEntries(groupedFuels: { [key: string]: { price: number, originalType: string } }): Array<[string, { price: number, originalType: string }]> {
+        const orderedEntries: Array<[string, { price: number, originalType: string }]> = [];
+        
+        // First, add fuels in the standard order (unleaded, diesel, premium)
+        for (const category of this.FUEL_CATEGORIES) {
+            if (groupedFuels[category.name]) {
+                orderedEntries.push([category.name, groupedFuels[category.name]]);
+            }
+        }
+        
+        // Then add any other fuel types not in the standard categories
+        for (const [fuelType, data] of Object.entries(groupedFuels)) {
+            const isStandardCategory = this.FUEL_CATEGORIES.some(cat => cat.name === fuelType);
+            if (!isStandardCategory) {
+                orderedEntries.push([fuelType, data]);
+            }
+        }
+        
+        return orderedEntries;
+    }
 }
