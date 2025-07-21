@@ -1,6 +1,7 @@
 /**
  * Server-side geographic filtering and spatial indexing for fuel stations
  */
+import { STATION_LIMITS, GEOGRAPHIC_BOUNDS, MAP_CONFIG } from './constants'
 
 export interface BoundingBox {
     north: number;
@@ -33,12 +34,12 @@ export class GeographicFilter {
                 return null;
             }
             
-            // Limit bounds to reasonable values (UK focus)
+            // Limit bounds to UK geographic bounds
             const clampedBounds = {
-                west: Math.max(-10, Math.min(west, 3)),
-                south: Math.max(49, Math.min(south, 61)),
-                east: Math.max(-10, Math.min(east, 3)),
-                north: Math.max(49, Math.min(north, 61))
+                west: Math.max(GEOGRAPHIC_BOUNDS.UK_WEST, Math.min(west, GEOGRAPHIC_BOUNDS.UK_EAST)),
+                south: Math.max(GEOGRAPHIC_BOUNDS.UK_SOUTH, Math.min(south, GEOGRAPHIC_BOUNDS.UK_NORTH)),
+                east: Math.max(GEOGRAPHIC_BOUNDS.UK_WEST, Math.min(east, GEOGRAPHIC_BOUNDS.UK_EAST)),
+                north: Math.max(GEOGRAPHIC_BOUNDS.UK_SOUTH, Math.min(north, GEOGRAPHIC_BOUNDS.UK_NORTH))
             };
             
             return clampedBounds;
@@ -95,10 +96,10 @@ export class GeographicFilter {
             // Use Cloudflare country/ASN data for additional context
             if (cf && cf.asn && cf.country) {
                 // Some mobile carriers are known for budget devices
-                const budgetCarrierASNs = [
+                const budgetCarrierASNs: number[] = [
                     // Add ASNs for carriers known for budget devices if needed
                 ];
-                if (budgetCarrierASNs.includes(cf.asn)) {
+                if (budgetCarrierASNs.includes(Number(cf.asn))) {
                     isLowEndMobile = true;
                 }
             }
@@ -118,14 +119,14 @@ export class GeographicFilter {
             }
         }
         
-        // Station limits based on device type
+        // Station limits based on device type using constants
         let maxStations: number;
         if (isLowEndMobile) {
-            maxStations = 100;
+            maxStations = STATION_LIMITS.LOW_END_MOBILE;
         } else if (isMobile) {
-            maxStations = 300;
+            maxStations = STATION_LIMITS.MOBILE;
         } else {
-            maxStations = 1000;
+            maxStations = STATION_LIMITS.DESKTOP;
         }
         
         return {
@@ -181,7 +182,6 @@ export class GeographicFilter {
      * Calculate distance between two points (rough approximation for sorting)
      */
     static calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
-        const R = 6371; // Earth's radius in km
         const dLat = (lat2 - lat1) * Math.PI / 180;
         const dLng = (lng2 - lng1) * Math.PI / 180;
         const a = 
@@ -189,7 +189,7 @@ export class GeographicFilter {
             Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
             Math.sin(dLng/2) * Math.sin(dLng/2);
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        return R * c;
+        return MAP_CONFIG.EARTH_RADIUS_KM * c;
     }
 
     /**

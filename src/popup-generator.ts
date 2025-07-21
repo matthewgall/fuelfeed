@@ -1,6 +1,7 @@
 /**
  * Server-side popup HTML generator for fuel stations
  */
+import { PRICE_THRESHOLDS } from './constants'
 export class PopupGenerator {
     /**
      * Generate complete popup HTML for a fuel station
@@ -123,12 +124,12 @@ export class PopupGenerator {
     }
 
     /**
-     * Get color based on price value
+     * Get color based on price value using defined thresholds
      */
     private static getPriceColor(price: number): string {
-        if (price < 1.40) return '#00C851'; // Green
-        if (price < 1.50) return '#ffbb33'; // Amber
-        return '#FF4444'; // Red
+        if (price < PRICE_THRESHOLDS.LOW) return '#00C851'; // Green - good price
+        if (price < PRICE_THRESHOLDS.MEDIUM) return '#ffbb33'; // Amber - average price
+        return '#FF4444'; // Red - high price
     }
 
     /**

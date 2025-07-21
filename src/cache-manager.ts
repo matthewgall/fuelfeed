@@ -1,6 +1,7 @@
 /// <reference path="../worker-configuration.d.ts" />
 import { BrandStandardizer } from './brand-standardizer'
 import { PopupGenerator } from './popup-generator'
+import { CACHE_TTL, MAP_CONFIG } from './constants'
 
 export interface CacheConfig {
     defaultTtl: number;
@@ -17,7 +18,6 @@ export interface SpatialTile {
 
 export class CacheManager {
     private config: CacheConfig;
-    private static readonly TILE_SIZE = 0.1; // degrees
     private static readonly POPULAR_REGIONS = [
         // Major cities (highest priority)
         { name: 'london', bounds: { west: -0.5, south: 51.3, east: 0.2, north: 51.7 } },
@@ -62,7 +62,7 @@ export class CacheManager {
     generateSpatialTiles(bounds: { west: number, south: number, east: number, north: number }): SpatialTile[] {
         const tiles: SpatialTile[] = [];
         const zoom = this.calculateOptimalZoom(bounds);
-        const tileSize = CacheManager.TILE_SIZE / Math.pow(2, zoom);
+        const tileSize = MAP_CONFIG.TILE_SIZE / Math.pow(2, zoom);
         
         const minTileX = Math.floor(bounds.west / tileSize);
         const maxTileX = Math.floor(bounds.east / tileSize);
@@ -152,7 +152,11 @@ export class CacheManager {
 
     private async compressData(data: string): Promise<string> {
         // Simple base64 encoding for now - in production you'd use actual compression
-        return btoa(unescape(encodeURIComponent(data)));
+        // Using decodeURIComponent instead of deprecated unescape
+        const encoder = new TextEncoder();
+        const decoder = new TextDecoder();
+        const encoded = encoder.encode(data);
+        return btoa(decoder.decode(encoded));
     }
 
     private base64ToArrayBuffer(base64: string): ArrayBuffer {
@@ -195,7 +199,7 @@ export class CacheManager {
                 };
                 
                 const cacheKey = this.generateCacheKey('mapbox', region.bounds);
-                await this.storeResponse(cacheKey, response, env, 1800); // 30 minute TTL for popular regions
+                await this.storeResponse(cacheKey, response, env, CACHE_TTL.POPULAR_REGIONS);
                 
                 console.log(`Warmed cache for ${region.name}: ${features.length} stations`);
             } catch (error) {

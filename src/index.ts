@@ -1,13 +1,13 @@
 /// <reference path="../worker-configuration.d.ts" />
 import { AutoRouter } from 'itty-router'
 import Fuel from './fuel'
-import { PriceNormalizer } from './price-normalizer'
 import { CacheManager } from './cache-manager'
 import { CacheInvalidator } from './cache-invalidator'
 import { FuelCategorizer } from './fuel-categorizer'
 import { BrandStandardizer } from './brand-standardizer'
 import { PopupGenerator } from './popup-generator'
 import { GeographicFilter } from './geographic-filter'
+import { CACHE_TTL, STATION_LIMITS, PRICE_THRESHOLDS } from './constants'
 
 const router = AutoRouter()
 const responseData = {
@@ -17,16 +17,18 @@ const responseData = {
     }
 }
 
-// Cache TTL helper function
+/**
+ * Get cache TTL values from environment or use constants as fallbacks
+ */
 function getCacheTTL(env: any) {
     return {
-        FUEL_DATA: parseInt(env.FUEL_DATA_TTL || '86400'), // 24 hours default
-        MAPBOX_DATA: parseInt(env.MAPBOX_DATA_TTL || '43200'), // 12 hours default
-        BASE_DATA: parseInt(env.BASE_DATA_TTL || '3600') // 1 hour default
+        FUEL_DATA: parseInt(env.FUEL_DATA_TTL || CACHE_TTL.FUEL_DATA.toString()),
+        MAPBOX_DATA: parseInt(env.MAPBOX_DATA_TTL || CACHE_TTL.MAPBOX_DATA.toString()),
+        BASE_DATA: parseInt(env.BASE_DATA_TTL || CACHE_TTL.BASE_DATA.toString())
     };
 }
 
-async function doSchedule(event:any, env: any) {
+async function doSchedule(_event: any, env: any) {
     // Smart cache invalidation before update
     const invalidationResult = await CacheInvalidator.smartInvalidation(env, 'scheduled-update');
     console.log(`Cache invalidation: ${invalidationResult.reason} (${invalidationResult.deleted} entries)`);
@@ -39,7 +41,7 @@ async function doSchedule(event:any, env: any) {
     await env.KV.put('fueldata', JSON.stringify(data))
     
     // Update cache timestamp for smart invalidation
-    await env.KV.put('fueldata-updated', Date.now().toString(), { expirationTtl: 86400 });
+    await env.KV.put('fueldata-updated', Date.now().toString(), { expirationTtl: CACHE_TTL.FUEL_DATA });
     
     // Warm cache for popular regions
     const cacheManager = new CacheManager();
@@ -52,7 +54,7 @@ async function doSchedule(event:any, env: any) {
     console.log('Scheduled update completed with cache warming and cleanup');
 }
 
-router.get('/api/data.json', async (request, env, context) => {
+router.get('/api/data.json', async (request, env, _context) => {
     const CACHE_TTL = getCacheTTL(env);
     const cacheManager = new CacheManager({
         defaultTtl: CACHE_TTL.FUEL_DATA,
@@ -80,7 +82,7 @@ router.get('/api/data.json', async (request, env, context) => {
         data = new Fuel;
         data = await data.getData(env);
         await env.KV.put("fueldata", JSON.stringify(data), { expirationTtl: CACHE_TTL.BASE_DATA });
-        await env.KV.put('fueldata-updated', Date.now().toString(), { expirationTtl: 86400 });
+        await env.KV.put('fueldata-updated', Date.now().toString(), { expirationTtl: CACHE_TTL.FUEL_DATA });
     }
     
     // Store in compressed cache and return
@@ -94,7 +96,7 @@ router.get('/api/data.json', async (request, env, context) => {
     return new Response(JSON.stringify(data), { headers });
 })
 
-router.get('/api/data.mapbox', async (request, env, context) => {
+router.get('/api/data.mapbox', async (request, env, _context) => {
     const CACHE_TTL = getCacheTTL(env);
     const cacheManager = new CacheManager({
         defaultTtl: CACHE_TTL.MAPBOX_DATA,
@@ -132,7 +134,7 @@ router.get('/api/data.mapbox', async (request, env, context) => {
     }
 
     // Try to get cached compressed response first (include limit in cache key)
-    const cacheKey = cacheManager.generateCacheKey('mapbox', bounds, requestedLimit);
+    const cacheKey = cacheManager.generateCacheKey('mapbox', bounds ?? undefined, requestedLimit ?? undefined);
     const cachedResponse = await cacheManager.getCachedResponse(cacheKey, env);
     if (cachedResponse) {
         return cachedResponse;
@@ -149,12 +151,10 @@ router.get('/api/data.mapbox', async (request, env, context) => {
     // First pass: collect all valid stations with price data
     const validStations: any[] = [];
     let stationCount = 0;
-    // Use a larger initial limit for server-side processing, then apply geographic filtering
-    const maxStations = bounds ? 10000 : 15000;
-    
+    // Use larger initial limits for server-side processing, then apply geographic filtering
     for (let brand of Object.keys(d)) {
         for (let s of Object.keys(d[brand])) {
-            if (stationCount >= maxStations) break;
+            if (stationCount >= (bounds ? STATION_LIMITS.SERVER_PROCESSING : STATION_LIMITS.SERVER_NO_BOUNDS)) break;
             
             let stn: any = d[brand][s];
             
@@ -175,7 +175,7 @@ router.get('/api/data.mapbox', async (request, env, context) => {
                 let price = stn.prices[fuel];
                 
                 if (typeof price === 'number') {
-                    const priceInPounds = price > 10 ? price / 100 : price;
+                    const priceInPounds = price > PRICE_THRESHOLDS.PENCE_CONVERSION ? price / 100 : price;
                     numericPrices.push(priceInPounds);
                     fuelPrices[fuel] = priceInPounds;
                 }
@@ -204,7 +204,7 @@ router.get('/api/data.mapbox', async (request, env, context) => {
             
             stationCount++;
         }
-        if (stationCount >= maxStations) break;
+        if (stationCount >= (bounds ? STATION_LIMITS.SERVER_PROCESSING : STATION_LIMITS.SERVER_NO_BOUNDS)) break;
     }
     
     // Second pass: find best prices for each fuel category
@@ -255,7 +255,7 @@ router.get('/api/data.mapbox', async (request, env, context) => {
             // Keep original station data
             _originalStation: station
         })),
-        bounds || undefined,
+        bounds ?? undefined,
         deviceCapabilities,
         centerLat,
         centerLng
@@ -354,7 +354,7 @@ router.get('/api/data.mapbox', async (request, env, context) => {
 })
 
 // Cache management endpoint
-router.get('/api/cache/stats', async (request, env, context) => {
+router.get('/api/cache/stats', async (_request, env, _context) => {
     const stats = await CacheInvalidator.getCacheStats(env);
     return new Response(JSON.stringify({
         ...stats,
