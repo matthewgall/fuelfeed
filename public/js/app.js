@@ -91,7 +91,212 @@ class ViewportPersistence {
     }
 }
 
-// Load saved viewport or use defaults
+// Geolocation system for user positioning
+class GeolocationManager {
+    static TIMEOUT = 10000; // 10 second timeout
+    static MAX_AGE = 5 * 60 * 1000; // Accept 5-minute old positions
+    static STORAGE_KEY = 'fuelfeed-last-location';
+    
+    static async getCurrentLocation() {
+        console.log('Requesting user location...');
+        
+        // Check if geolocation is available
+        if (!navigator.geolocation) {
+            throw new Error('Geolocation not supported by this browser');
+        }
+        
+        try {
+            const position = await this.requestLocation();
+            const coords = {
+                lng: position.coords.longitude,
+                lat: position.coords.latitude,
+                accuracy: position.coords.accuracy,
+                timestamp: Date.now()
+            };
+            
+            // Validate coordinates are reasonable (rough world bounds)
+            if (coords.lat < -90 || coords.lat > 90 || coords.lng < -180 || coords.lng > 180) {
+                throw new Error('Invalid coordinates received');
+            }
+            
+            // Save location for future use
+            this.saveLastLocation(coords);
+            
+            console.log('Location acquired:', coords);
+            return coords;
+            
+        } catch (error) {
+            console.warn('Geolocation failed:', error.message);
+            
+            // Try to use last known location as fallback
+            const lastLocation = this.getLastLocation();
+            if (lastLocation) {
+                console.log('Using last known location:', lastLocation);
+                return lastLocation;
+            }
+            
+            throw error;
+        }
+    }
+    
+    static requestLocation() {
+        return new Promise((resolve, reject) => {
+            const options = {
+                enableHighAccuracy: false, // Prioritize speed over accuracy for fuel finding
+                timeout: this.TIMEOUT,
+                maximumAge: this.MAX_AGE
+            };
+            
+            navigator.geolocation.getCurrentPosition(
+                resolve,
+                (error) => {
+                    let errorMessage;
+                    switch (error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMessage = 'Location access denied by user';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMessage = 'Location information unavailable';
+                            break;
+                        case error.TIMEOUT:
+                            errorMessage = 'Location request timed out';
+                            break;
+                        default:
+                            errorMessage = `Unknown geolocation error: ${error.message}`;
+                            break;
+                    }
+                    reject(new Error(errorMessage));
+                },
+                options
+            );
+        });
+    }
+    
+    static saveLastLocation(coords) {
+        try {
+            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(coords));
+        } catch (error) {
+            console.warn('Failed to save location:', error);
+        }
+    }
+    
+    static getLastLocation() {
+        try {
+            const stored = localStorage.getItem(this.STORAGE_KEY);
+            if (!stored) return null;
+            
+            const location = JSON.parse(stored);
+            
+            // Check if stored location is too old (24 hours)
+            const maxAge = 24 * 60 * 60 * 1000;
+            if (Date.now() - location.timestamp > maxAge) {
+                localStorage.removeItem(this.STORAGE_KEY);
+                return null;
+            }
+            
+            return location;
+        } catch (error) {
+            console.warn('Failed to load last location:', error);
+            return null;
+        }
+    }
+    
+    static async initializeLocation(map) {
+        // Check URL first (for shareable links)
+        const urlLocation = URLStateManager.getLocationFromURL();
+        if (urlLocation) {
+            console.log('Using location from URL:', urlLocation);
+            map.setCenter([urlLocation.lng, urlLocation.lat]);
+            if (urlLocation.zoom) map.setZoom(urlLocation.zoom);
+            return urlLocation;
+        }
+        
+        // Try to get current location
+        try {
+            const location = await this.getCurrentLocation();
+            
+            // Center map on user location with appropriate zoom
+            const zoom = isMobile ? 12 : 11; // Closer zoom when we have user location
+            map.flyTo({
+                center: [location.lng, location.lat],
+                zoom: zoom,
+                duration: 1000
+            });
+            
+            console.log('Map centered on user location');
+            return location;
+            
+        } catch (error) {
+            console.log('Using fallback to saved/default viewport');
+            
+            // Fall back to saved viewport or default
+            const savedViewport = ViewportPersistence.loadViewport();
+            map.setCenter(savedViewport.center);
+            map.setZoom(savedViewport.zoom);
+            
+            return null;
+        }
+    }
+}
+
+// URL state management for shareable links
+class URLStateManager {
+    static updateURL(center, zoom) {
+        if (!window.history?.replaceState) return;
+        
+        try {
+            const url = new URL(window.location);
+            url.searchParams.set('lat', center.lat.toFixed(4));
+            url.searchParams.set('lng', center.lng.toFixed(4));
+            url.searchParams.set('zoom', zoom.toFixed(1));
+            
+            // Update URL without triggering page reload
+            window.history.replaceState(null, '', url);
+        } catch (error) {
+            console.warn('Failed to update URL state:', error);
+        }
+    }
+    
+    static getLocationFromURL() {
+        try {
+            const url = new URL(window.location);
+            const lat = parseFloat(url.searchParams.get('lat'));
+            const lng = parseFloat(url.searchParams.get('lng'));
+            const zoom = parseFloat(url.searchParams.get('zoom'));
+            
+            // Validate coordinates
+            if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+                return null;
+            }
+            
+            return {
+                lat,
+                lng,
+                zoom: isNaN(zoom) ? undefined : zoom
+            };
+        } catch (error) {
+            console.warn('Failed to parse URL location:', error);
+            return null;
+        }
+    }
+    
+    static clearURLState() {
+        if (!window.history?.replaceState) return;
+        
+        try {
+            const url = new URL(window.location);
+            url.searchParams.delete('lat');
+            url.searchParams.delete('lng');
+            url.searchParams.delete('zoom');
+            
+            window.history.replaceState(null, '', url);
+        } catch (error) {
+            console.warn('Failed to clear URL state:', error);
+        }
+    }
+}
+
+// Load saved viewport or use defaults (keeping existing functionality)
 const savedViewport = ViewportPersistence.loadViewport();
 
 // Mobile-optimized map configuration with v3.6.0 compatibility
@@ -736,8 +941,11 @@ map.on('load', function () {
         }
     }
 
-    // Load initial data for current view
-    loadStationsInView();
+    // Initialize location (geolocation or URL state) before loading stations
+    GeolocationManager.initializeLocation(map).finally(() => {
+        // Load initial data for current view after location is set
+        loadStationsInView();
+    });
 
     // Reload data when map moves (debounced) - reduce events on mobile
     try {
@@ -1277,6 +1485,7 @@ function saveCurrentViewport() {
         const center = map.getCenter();
         const zoom = map.getZoom();
         ViewportPersistence.saveViewport(center, zoom);
+        URLStateManager.updateURL(center, zoom);
     } catch (error) {
         console.warn('Failed to save current viewport:', error);
     }
