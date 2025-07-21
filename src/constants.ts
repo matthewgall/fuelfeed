@@ -70,3 +70,19 @@ export const MAP_CONFIG = {
     MAX_ZOOM_MOBILE: 14,          // Maximum zoom level for mobile
     MAX_ZOOM_DESKTOP: 18          // Maximum zoom level for desktop
 } as const;
+
+// Dynamic pricing configuration
+export const DYNAMIC_PRICING = {
+    THRESHOLD_MARGIN: 0.05,       // 5p difference for good/high price thresholds
+    MIN_SAMPLE_SIZE: 10,          // Minimum stations needed for reliable analysis
+    OUTLIER_PERCENTILE: 0.1,      // Remove top/bottom 10% as outliers
+    MIN_PRICE: 0.5,               // Minimum valid price in pounds
+    MAX_PRICE: 5.0,               // Maximum valid price in pounds
+    PENCE_TO_POUNDS_THRESHOLD: 10 // Prices above this are assumed to be in pence
+} as const;
+
+// Static price fallback thresholds
+export const STATIC_PRICE_FALLBACK = {
+    LOW: 1.40,                    // Static fallback for low prices
+    MEDIUM: 1.50                  // Static fallback for medium prices
+} as const;

@@ -187,12 +187,12 @@ export class CacheManager {
         return `mapbox-full${limitSuffix}`;
     }
 
-    async warmPopularRegions(env: any, fullData: any): Promise<void> {
+    async warmPopularRegions(env: any, fullData: any, priceAnalysis?: any): Promise<void> {
         console.log('Warming cache for popular regions...');
         
         for (const region of CacheManager.POPULAR_REGIONS) {
             try {
-                const features = this.filterStationsByBounds(fullData, region.bounds);
+                const features = this.filterStationsByBounds(fullData, region.bounds, priceAnalysis);
                 const response = {
                     type: "FeatureCollection",
                     features
@@ -208,7 +208,7 @@ export class CacheManager {
         }
     }
 
-    private filterStationsByBounds(data: any, bounds: { west: number, south: number, east: number, north: number }): any[] {
+    private filterStationsByBounds(data: any, bounds: { west: number, south: number, east: number, north: number }, priceAnalysis?: any): any[] {
         const features: any[] = [];
         
         for (let brand of Object.keys(data)) {
@@ -242,7 +242,8 @@ export class CacheManager {
                                 stn.address.postcode,
                                 prices.join("<br />"),
                                 false, // Cache manager doesn't calculate best prices
-                                stn.updated
+                                stn.updated,
+                                priceAnalysis
                             ),
                             "fuel_prices": PopupGenerator.generateStructuredPrices(prices.join("<br />")),
                             "updated": stn.updated

@@ -7,6 +7,7 @@ import { FuelCategorizer } from './fuel-categorizer'
 import { BrandStandardizer } from './brand-standardizer'
 import { PopupGenerator } from './popup-generator'
 import { GeographicFilter } from './geographic-filter'
+import { DynamicPricing } from './dynamic-pricing'
 import { CACHE_TTL, STATION_LIMITS, PRICE_THRESHOLDS } from './constants'
 
 const router = AutoRouter()
@@ -28,6 +29,28 @@ function getCacheTTL(env: any) {
     };
 }
 
+/**
+ * Get cached price thresholds from KV storage
+ */
+async function getCachedPriceThresholds(env: any) {
+    const analysis: any = {};
+    
+    // Retrieve cached thresholds for each fuel type
+    const fuelTypes = ['unleaded', 'diesel', 'premium'];
+    for (const fuelType of fuelTypes) {
+        const cached = await env.KV.get(`price-threshold-${fuelType}`);
+        if (cached) {
+            try {
+                analysis[fuelType] = JSON.parse(cached);
+            } catch (error) {
+                console.log(`Error parsing cached thresholds for ${fuelType}:`, error);
+            }
+        }
+    }
+    
+    return analysis;
+}
+
 async function doSchedule(_event: any, env: any) {
     // Smart cache invalidation before update
     const invalidationResult = await CacheInvalidator.smartInvalidation(env, 'scheduled-update');
@@ -40,12 +63,23 @@ async function doSchedule(_event: any, env: any) {
     // Store main data
     await env.KV.put('fueldata', JSON.stringify(data))
     
+    // Calculate and store dynamic price thresholds for better API performance
+    console.log('Calculating dynamic price thresholds...');
+    const priceAnalysis = DynamicPricing.analyzePrices(data);
+    
+    // Store individual threshold values for quick lookup
+    for (const [fuelType, thresholds] of Object.entries(priceAnalysis)) {
+        if (thresholds) {
+            await env.KV.put(`price-threshold-${fuelType}`, JSON.stringify(thresholds), { expirationTtl: CACHE_TTL.FUEL_DATA });
+        }
+    }
+    
     // Update cache timestamp for smart invalidation
     await env.KV.put('fueldata-updated', Date.now().toString(), { expirationTtl: CACHE_TTL.FUEL_DATA });
     
-    // Warm cache for popular regions
+    // Warm cache for popular regions using pre-calculated analysis
     const cacheManager = new CacheManager();
-    await cacheManager.warmPopularRegions(env, data);
+    await cacheManager.warmPopularRegions(env, data, priceAnalysis);
     
     // Clean up stale cache entries
     const cleanupResult = await CacheInvalidator.smartInvalidation(env, 'cleanup');
@@ -147,6 +181,9 @@ router.get('/api/data.mapbox', async (request, env, _context) => {
         d = await d.getData(env);
         await env.KV.put("fueldata", JSON.stringify(d), { expirationTtl: CACHE_TTL.BASE_DATA })
     }
+
+    // Get cached price thresholds for better performance
+    const priceAnalysis = await getCachedPriceThresholds(env);
 
     // First pass: collect all valid stations with price data
     const validStations: any[] = [];
@@ -298,13 +335,14 @@ router.get('/api/data.mapbox', async (request, env, _context) => {
         const priceDescription = station.prices.join("<br />");
         const location = station.stn.address.postcode;
         
-        // Generate server-side popup HTML
+        // Generate server-side popup HTML with dynamic pricing
         const popupHTML = PopupGenerator.generatePopupHTML(
             standardizedBrand,
             location,
             priceDescription,
             isBestPrice,
-            station.stn.updated
+            station.stn.updated,
+            priceAnalysis
         );
         
         // Generate structured price data

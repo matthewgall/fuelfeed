@@ -2,12 +2,13 @@
  * Server-side popup HTML generator for fuel stations
  */
 import { PRICE_THRESHOLDS } from './constants'
+import { DynamicPricing, FuelPriceAnalysis } from './dynamic-pricing'
 export class PopupGenerator {
     /**
      * Generate complete popup HTML for a fuel station
      */
-    static generatePopupHTML(brand: string, location: string, priceDescription: string, isBestPrice: boolean = false, updatedTime?: string): string {
-        const priceItems = this.parsePriceDescription(priceDescription);
+    static generatePopupHTML(brand: string, location: string, priceDescription: string, isBestPrice: boolean = false, updatedTime?: string, priceAnalysis?: FuelPriceAnalysis): string {
+        const priceItems = this.parsePriceDescription(priceDescription, priceAnalysis);
         
         return `
             <div style="
@@ -67,7 +68,7 @@ export class PopupGenerator {
     /**
      * Parse price description and generate HTML for each fuel type
      */
-    private static parsePriceDescription(description: string): string[] {
+    private static parsePriceDescription(description: string, priceAnalysis?: FuelPriceAnalysis): string[] {
         if (!description) return [];
 
         const prices = description.split('<br />');
@@ -83,7 +84,7 @@ export class PopupGenerator {
                     const priceVal = parseFloat(match[3]);
 
                     if (!isNaN(priceVal)) {
-                        const color = this.getPriceColor(priceVal);
+                        const color = this.getPriceColorDynamic(fuel, priceVal, priceAnalysis);
                         
                         priceItems.push(`
                             <div style="
@@ -124,12 +125,37 @@ export class PopupGenerator {
     }
 
     /**
-     * Get color based on price value using defined thresholds
+     * Get color based on price value using dynamic analysis or fallback to static thresholds
+     */
+    private static getPriceColorDynamic(fuelType: string, price: number, priceAnalysis?: FuelPriceAnalysis): string {
+        if (priceAnalysis) {
+            // Use dynamic pricing analysis if available
+            const fuelCategory = this.mapFuelToCategory(fuelType);
+            return DynamicPricing.getPriceColor(priceAnalysis, fuelCategory, price);
+        }
+        
+        // Fallback to static thresholds
+        return this.getPriceColor(price);
+    }
+
+    /**
+     * Get color based on price value using static thresholds (fallback)
      */
     private static getPriceColor(price: number): string {
         if (price < PRICE_THRESHOLDS.LOW) return '#00C851'; // Green - good price
         if (price < PRICE_THRESHOLDS.MEDIUM) return '#ffbb33'; // Amber - average price
         return '#FF4444'; // Red - high price
+    }
+
+    /**
+     * Map fuel display name to category for dynamic pricing
+     */
+    private static mapFuelToCategory(fuelDisplayName: string): string {
+        const normalized = fuelDisplayName.toLowerCase();
+        if (/unleaded|petrol|e5|e10/.test(normalized)) return 'unleaded';
+        if (/diesel|gasoil|b7/.test(normalized)) return 'diesel';
+        if (/premium|super|v-power|momentum|ultimate/.test(normalized)) return 'premium';
+        return 'unleaded'; // Default fallback
     }
 
     /**
@@ -166,7 +192,7 @@ export class PopupGenerator {
                             type: fuel.toLowerCase().replace(/\s+/g, '_'),
                             icon: icon,
                             price: priceVal,
-                            color: this.getPriceColor(priceVal),
+                            color: this.getPriceColorDynamic(fuel, priceVal), // Note: no analysis passed here for backward compatibility
                             displayName: fuel
                         });
                     }
