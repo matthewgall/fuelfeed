@@ -4,26 +4,116 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes">
-    <title>fuelaround.me</title>
-    <link href="//cdn.maptiler.com/maptiler-sdk-js/v3.6.0/maptiler-sdk.css" rel="stylesheet" />
-    <link rel="stylesheet" href="/css/styles.css">
+    
+    <!-- PWA Meta Tags -->
+    <title>fuelaround.me - UK Fuel Price Tracker</title>
+    <meta name="description" content="Find the cheapest fuel prices near you across the UK with real-time data from major retailers.">
+    <meta name="keywords" content="fuel prices, petrol, diesel, UK, cheap fuel, gas stations, fuel finder">
+    <meta name="author" content="fuelaround.me">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Theme and Display -->
+    <meta name="theme-color" content="#007cbf">
+    <meta name="background-color" content="#1a1a2e">
+    <meta name="display" content="standalone">
+    <meta name="orientation" content="portrait">
+    
+    <!-- Apple PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="fuelaround.me">
+    <meta name="apple-touch-fullscreen" content="yes">
+    
+    <!-- Microsoft PWA Meta Tags -->
+    <meta name="msapplication-TileColor" content="#007cbf">
+    <meta name="msapplication-config" content="/browserconfig.xml">
+    <meta name="msapplication-starturl" content="/">
+    <meta name="msapplication-navbutton-color" content="#007cbf">
+    
     <!-- Icons -->
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
-    <link rel="manifest" href="/site.webmanifest">
-    <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
-    <meta name="msapplication-TileColor" content="#da532c">
-    <meta name="theme-color" content="#ffffff">
+    <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#007cbf">
+    
+    <!-- Stylesheets -->
+    <link href="//cdn.maptiler.com/maptiler-sdk-js/v3.6.0/maptiler-sdk.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/css/styles.css">
+    
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="//api.maptiler.com">
+    <link rel="preconnect" href="//cdn.maptiler.com">
 </head>
 
 <body>
     <div id="map"></div>
     <div id="loading-indicator">Loading stations...</div>
     <div id="offline-indicator">Offline</div>
+    
+    <!-- PWA Install Prompt -->
+    <div id="pwa-install-prompt" style="display: none;">
+        <div class="install-banner">
+            <span>📱 Install fuelaround.me as an app for faster access!</span>
+            <button id="pwa-install-btn">Install</button>
+            <button id="pwa-dismiss-btn">✕</button>
+        </div>
+    </div>
+    
     <script src="//cdn.maptiler.com/maptiler-sdk-js/v3.6.0/maptiler-sdk.umd.min.js"></script>
     <script src="/js/station-cache.js"></script>
     <script src="/js/app.js"></script>
+    
+    <!-- PWA Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/js/worker.js')
+                    .then(registration => {
+                        console.log('SW registered: ', registration);
+                        
+                        // Request background sync permission if available
+                        if ('sync' in window.ServiceWorkerRegistration.prototype) {
+                            registration.sync.register('fuel-data-sync');
+                        }
+                    })
+                    .catch(registrationError => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+
+        // PWA Install Prompt
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            
+            // Show install prompt after 30 seconds if not dismissed
+            setTimeout(() => {
+                if (deferredPrompt && !localStorage.getItem('pwa-dismissed')) {
+                    document.getElementById('pwa-install-prompt').style.display = 'block';
+                }
+            }, 30000);
+        });
+
+        // Handle install prompt
+        document.addEventListener('click', (e) => {
+            if (e.target.id === 'pwa-install-btn') {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    deferredPrompt.userChoice.then((choiceResult) => {
+                        deferredPrompt = null;
+                        document.getElementById('pwa-install-prompt').style.display = 'none';
+                    });
+                }
+            } else if (e.target.id === 'pwa-dismiss-btn') {
+                document.getElementById('pwa-install-prompt').style.display = 'none';
+                localStorage.setItem('pwa-dismissed', 'true');
+            }
+        });
+    </script>
 </body>
 
 </html>

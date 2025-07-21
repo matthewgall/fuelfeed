@@ -1,20 +1,47 @@
 {
-    "name": "fuelaround.me",
+    "name": "fuelaround.me - UK Fuel Price Tracker",
     "short_name": "fuelaround.me",
+    "description": "Find the cheapest fuel prices near you across the UK with real-time data from major retailers.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#1a1a2e",
+    "theme_color": "#007cbf",
+    "orientation": "portrait-primary",
+    "scope": "/",
+    "lang": "en-GB",
+    "categories": ["utilities", "travel", "navigation"],
     "icons": [
+        {
+            "src": "/icons/favicon-16x16.png",
+            "sizes": "16x16",
+            "type": "image/png"
+        },
+        {
+            "src": "/icons/favicon-32x32.png",
+            "sizes": "32x32",
+            "type": "image/png"
+        },
+        {
+            "src": "/icons/apple-touch-icon.png",
+            "sizes": "180x180",
+            "type": "image/png"
+        },
         {
             "src": "/icons/android-chrome-192x192.png",
             "sizes": "192x192",
-            "type": "image/png"
+            "type": "image/png",
+            "purpose": "maskable any"
         },
         {
             "src": "/icons/android-chrome-512x512.png",
             "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable any"
+        },
+        {
+            "src": "/icons/mstile-150x150.png",
+            "sizes": "150x150",
             "type": "image/png"
         }
-    ],
-    "theme_color": "#ffffff",
-    "background_color": "#ffffff",
-    "display": "standalone",
-    "start_url": "/"
+    ]
 }

@@ -1,7 +1,7 @@
 // Enhanced Service Worker for FuelFeed
 // Version with comprehensive offline data caching
 
-const CACHE_VERSION = "fuelfeed-v3.0";
+const CACHE_VERSION = "fuelfeed-v4.0";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const FUEL_DATA_CACHE = `${CACHE_VERSION}-fuel-data`;
 const MAP_TILES_CACHE = `${CACHE_VERSION}-map-tiles`;
@@ -23,11 +23,15 @@ const STATIC_ASSETS = [
     "/js/app.js",
     "/js/station-cache.js",
     "/js/worker.js",
+    "/manifest.json",
+    "/site.webmanifest",
     "/favicon.ico",
     "/icons/android-chrome-192x192.png",
     "/icons/android-chrome-512x512.png",
     "/icons/apple-touch-icon.png",
-    "/site.webmanifest"
+    "/icons/favicon-16x16.png",
+    "/icons/favicon-32x32.png",
+    "/icons/mstile-150x150.png"
 ];
 
 // API endpoints that should be cached for offline use

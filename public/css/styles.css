@@ -3,6 +3,7 @@
 body {
     margin: 0;
     padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 #map {
@@ -150,5 +151,139 @@ body {
     .mapboxgl-ctrl-top-right {
         top: 20px;
         right: 20px;
+    }
+}
+
+/* PWA Install Prompt Styles */
+#pwa-install-prompt {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10000;
+    animation: slideUp 0.3s ease-out;
+}
+
+.install-banner {
+    background: linear-gradient(135deg, #007cbf 0%, #005a87 100%);
+    color: white;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 -2px 12px rgba(0,0,0,0.2);
+    border-radius: 12px 12px 0 0;
+    gap: 12px;
+}
+
+.install-banner span {
+    flex: 1;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+#pwa-install-btn {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(10px);
+}
+
+#pwa-install-btn:hover {
+    background: rgba(255,255,255,0.3);
+    transform: translateY(-1px);
+}
+
+#pwa-dismiss-btn {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.8);
+    font-size: 18px;
+    width: 32px;
+    height: 32px;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#pwa-dismiss-btn:hover {
+    background: rgba(255,255,255,0.1);
+    color: white;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Enhanced offline indicator for PWA */
+#offline-indicator {
+    transition: all 0.3s ease;
+}
+
+#offline-indicator.pwa-mode {
+    background: #6c5ce7;
+    color: white;
+}
+
+#offline-indicator.pwa-mode::before {
+    content: "📱 ";
+    margin-right: 4px;
+}
+
+/* PWA-specific loading states */
+.pwa-loading {
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+/* Mobile PWA optimizations */
+@media (max-width: 480px) {
+    .install-banner {
+        padding: 12px 16px;
+        gap: 8px;
+    }
+    
+    .install-banner span {
+        font-size: 13px;
+    }
+    
+    #pwa-install-btn {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+}
+
+/* Standalone PWA mode detection */
+@media (display-mode: standalone) {
+    body {
+        user-select: none; /* Prevent text selection in app mode */
+    }
+    
+    #offline-indicator.online::after {
+        content: " (App Mode)";
+        font-size: 10px;
+        opacity: 0.8;
     }
 }
