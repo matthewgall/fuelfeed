@@ -201,13 +201,65 @@ class GeolocationManager {
         }
     }
     
+    static async findStationLocation(stationId) {
+        try {
+            console.log('Looking up station location for:', stationId);
+            
+            // First try to get a reasonable bounding box to search in
+            // We'll search the whole UK initially
+            const response = await fetch('/api/data.mapbox');
+            if (!response.ok) {
+                throw new Error(`Station lookup failed: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            if (data.features) {
+                for (const feature of data.features) {
+                    if (feature.properties.station_id === stationId) {
+                        const [lng, lat] = feature.geometry.coordinates;
+                        console.log(`Found station ${stationId} at [${lng}, ${lat}]`);
+                        return { lng, lat };
+                    }
+                }
+            }
+            
+            console.warn(`Station ${stationId} not found in current data`);
+            return null;
+            
+        } catch (error) {
+            console.error('Error finding station location:', error);
+            return null;
+        }
+    }
+    
     static async initializeLocation(map) {
-        // Check URL first (for shareable links)
+        // Check URL first (for shareable links including station links)
         const urlLocation = URLStateManager.getLocationFromURL();
         if (urlLocation) {
             console.log('Using location from URL:', urlLocation);
+            
+            // If there's a station parameter, try to find and center on that station
+            if (urlLocation.station) {
+                console.log('Station specified in URL:', urlLocation.station);
+                const stationLocation = await this.findStationLocation(urlLocation.station);
+                if (stationLocation) {
+                    console.log('Found station, centering map on station location');
+                    map.flyTo({
+                        center: [stationLocation.lng, stationLocation.lat],
+                        zoom: 15, // Zoom in close for station view
+                        duration: 1500
+                    });
+                    window.highlightStationId = urlLocation.station;
+                    return { ...stationLocation, station: urlLocation.station };
+                } else {
+                    console.warn('Station not found, using URL coordinates');
+                }
+            }
+            
+            // Use URL coordinates if no station or station not found
             map.setCenter([urlLocation.lng, urlLocation.lat]);
             if (urlLocation.zoom) map.setZoom(urlLocation.zoom);
+            
             return urlLocation;
         }
         
@@ -241,7 +293,7 @@ class GeolocationManager {
 
 // URL state management for shareable links
 class URLStateManager {
-    static updateURL(center, zoom) {
+    static updateURL(center, zoom, stationId = null) {
         if (!window.history?.replaceState) return;
         
         try {
@@ -249,6 +301,13 @@ class URLStateManager {
             url.searchParams.set('lat', center.lat.toFixed(4));
             url.searchParams.set('lng', center.lng.toFixed(4));
             url.searchParams.set('zoom', zoom.toFixed(1));
+            
+            // Add station parameter if provided
+            if (stationId) {
+                url.searchParams.set('station', stationId);
+            } else {
+                url.searchParams.delete('station');
+            }
             
             // Update URL without triggering page reload
             window.history.replaceState(null, '', url);
@@ -263,6 +322,7 @@ class URLStateManager {
             const lat = parseFloat(url.searchParams.get('lat'));
             const lng = parseFloat(url.searchParams.get('lng'));
             const zoom = parseFloat(url.searchParams.get('zoom'));
+            const station = url.searchParams.get('station');
             
             // Validate coordinates
             if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
@@ -272,10 +332,21 @@ class URLStateManager {
             return {
                 lat,
                 lng,
-                zoom: isNaN(zoom) ? undefined : zoom
+                zoom: isNaN(zoom) ? undefined : zoom,
+                station: station || undefined
             };
         } catch (error) {
             console.warn('Failed to parse URL location:', error);
+            return null;
+        }
+    }
+    
+    static getStationFromURL() {
+        try {
+            const url = new URL(window.location);
+            return url.searchParams.get('station');
+        } catch (error) {
+            console.warn('Failed to parse station from URL:', error);
             return null;
         }
     }
@@ -288,11 +359,60 @@ class URLStateManager {
             url.searchParams.delete('lat');
             url.searchParams.delete('lng');
             url.searchParams.delete('zoom');
+            url.searchParams.delete('station');
             
             window.history.replaceState(null, '', url);
         } catch (error) {
             console.warn('Failed to clear URL state:', error);
         }
+    }
+    
+    static createStationURL(stationId, center, zoom) {
+        const url = new URL(window.location.origin + window.location.pathname);
+        url.searchParams.set('lat', center.lat.toFixed(4));
+        url.searchParams.set('lng', center.lng.toFixed(4));
+        url.searchParams.set('zoom', zoom.toFixed(1));
+        url.searchParams.set('station', stationId);
+        return url.toString();
+    }
+}
+
+// Function to open a specific station popup from URL
+function openStationFromURL(stationId) {
+    try {
+        console.log('Attempting to open station from URL:', stationId);
+        
+        // Query the map for the station feature
+        const features = map.querySourceFeatures('stations', {
+            filter: ['==', 'station_id', stationId]
+        });
+        
+        if (features.length > 0) {
+            const feature = features[0];
+            const [lng, lat] = feature.geometry.coordinates;
+            
+            console.log('Found station feature, opening popup');
+            
+            // Load the station detail and show popup
+            loadStationDetail(stationId).then(stationData => {
+                if (stationData && stationData.popup_html) {
+                    showStationPopup([lng, lat], stationData.popup_html);
+                    
+                    // Update URL to include the station parameter
+                    const center = { lat, lng };
+                    const zoom = map.getZoom();
+                    URLStateManager.updateURL(center, zoom, stationId);
+                }
+            }).catch(error => {
+                console.error('Failed to load station detail:', error);
+            });
+            
+        } else {
+            console.warn('Station feature not found on map:', stationId);
+        }
+        
+    } catch (error) {
+        console.error('Error opening station from URL:', error);
     }
 }
 
@@ -630,6 +750,12 @@ function loadStationsInView() {
             try {
                 if (map.getSource && map.getSource('stations')) {
                     map.getSource('stations').setData(data);
+                    
+                    // Auto-open popup for highlighted station after a short delay
+                    if (window.highlightStationId) {
+                        setTimeout(() => openStationFromURL(window.highlightStationId), 1000);
+                        window.highlightStationId = null; // Clear to prevent repeated opens
+                    }
                 } else {
                     console.warn('Stations source not available for data update');
                 }
@@ -1147,6 +1273,11 @@ map.on('load', function () {
                         .addTo(map);
                         
                         console.log(`Lazy loaded popup for station ${props.station_id}`);
+                        
+                        // Update URL to include station parameter for shareable links
+                        const center = { lat: coordinates.lat, lng: coordinates.lng };
+                        const zoom = map.getZoom();
+                        URLStateManager.updateURL(center, zoom, props.station_id);
                     } else {
                         throw new Error('No popup HTML in station data');
                     }
