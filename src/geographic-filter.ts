@@ -49,22 +49,74 @@ export class GeographicFilter {
     }
 
     /**
-     * Detect device capabilities from User-Agent header
+     * Detect device capabilities using Cloudflare request data and User-Agent fallback
      */
-    static detectDeviceCapabilities(userAgent: string): DeviceCapabilities {
-        const ua = userAgent.toLowerCase();
+    static detectDeviceCapabilities(request: Request): DeviceCapabilities {
+        // Use Cloudflare's device type detection if available
+        const cf = (request as any).cf;
+        let isMobile = false;
+        let isLowEndMobile = false;
         
-        // Mobile detection
-        const isMobile = /mobile|android|iphone|ipad|phone|tablet/i.test(ua);
+        if (cf) {
+            // Cloudflare provides device type information
+            if (cf.deviceType) {
+                isMobile = cf.deviceType === 'mobile' || cf.deviceType === 'tablet';
+            }
+            
+            // Check for additional Cloudflare mobile indicators
+            if (cf.isMobile !== undefined) {
+                isMobile = cf.isMobile;
+            }
+            
+            // Use bot management data (mobile crawlers are often identified)
+            if (cf.botManagement && cf.botManagement.score < 30 && cf.botManagement.verifiedBot === false) {
+                // Very low bot score might indicate mobile app traffic
+                // This is a heuristic, not definitive
+            }
+        }
         
-        // Low-end mobile detection (basic heuristics)
-        const isLowEndMobile = isMobile && (
-            /android [1-4]\./i.test(ua) ||
-            /cpu os [1-9]_/i.test(ua) ||
-            /windows phone/i.test(ua) ||
-            ua.includes('opera mini') ||
-            ua.includes('opera mobi')
-        );
+        // Fallback to User-Agent detection if Cloudflare data unavailable
+        const userAgent = request.headers.get('User-Agent') || '';
+        if (!cf || cf.deviceType === undefined) {
+            const ua = userAgent.toLowerCase();
+            isMobile = /mobile|android|iphone|ipad|phone|tablet/i.test(ua);
+        }
+        
+        // Enhanced low-end mobile detection using Cloudflare data + User-Agent
+        if (isMobile) {
+            // Use Cloudflare connection data if available
+            if (cf && cf.httpProtocol) {
+                // HTTP/1.1 might indicate older devices, HTTP/2+ indicates newer
+                if (cf.httpProtocol === 'HTTP/1.1') {
+                    isLowEndMobile = true;
+                }
+            }
+            
+            // Use Cloudflare country/ASN data for additional context
+            if (cf && cf.asn && cf.country) {
+                // Some mobile carriers are known for budget devices
+                const budgetCarrierASNs = [
+                    // Add ASNs for carriers known for budget devices if needed
+                ];
+                if (budgetCarrierASNs.includes(cf.asn)) {
+                    isLowEndMobile = true;
+                }
+            }
+            
+            // Fallback to User-Agent heuristics
+            const ua = userAgent.toLowerCase();
+            if (!isLowEndMobile) {
+                isLowEndMobile = (
+                    /android [1-4]\./i.test(ua) ||
+                    /cpu os [1-9]_/i.test(ua) ||
+                    /windows phone/i.test(ua) ||
+                    ua.includes('opera mini') ||
+                    ua.includes('opera mobi') ||
+                    ua.includes('ucbrowser') ||
+                    /android.*go/i.test(ua) // Android Go devices
+                );
+            }
+        }
         
         // Station limits based on device type
         let maxStations: number;

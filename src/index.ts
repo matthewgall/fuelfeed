@@ -111,9 +111,8 @@ router.get('/api/data.mapbox', async (request, env, context) => {
     // Parse bounding box using GeographicFilter
     const bounds = bbox ? GeographicFilter.parseBoundingBox(bbox) : null;
     
-    // Detect device capabilities from User-Agent
-    const userAgent = request.headers.get('User-Agent') || '';
-    const deviceCapabilities = GeographicFilter.detectDeviceCapabilities(userAgent);
+    // Detect device capabilities using Cloudflare request data
+    const deviceCapabilities = GeographicFilter.detectDeviceCapabilities(request);
     
     // Override max stations if limit is explicitly requested
     let requestedLimit = limitParam ? parseInt(limitParam) : null;
@@ -345,6 +344,8 @@ router.get('/api/data.mapbox', async (request, env, context) => {
         'X-Station-Count': features.length.toString(),
         'X-Filtered-Count': `${stationCount}->${features.length}`,
         'X-Device-Type': deviceCapabilities.isMobile ? (deviceCapabilities.isLowEndMobile ? 'low-mobile' : 'mobile') : 'desktop',
+        'X-CF-Device': (request as any).cf?.deviceType || 'unknown',
+        'X-Detection-Source': (request as any).cf?.deviceType ? 'cloudflare' : 'user-agent',
         'X-Cache-Key': cacheKey
     };
     
