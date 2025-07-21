@@ -86,3 +86,4 @@ export const STATIC_PRICE_FALLBACK = {
     LOW: 1.40,                    // Static fallback for low prices
     MEDIUM: 1.50                  // Static fallback for medium prices
 } as const;
+
