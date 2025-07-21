@@ -1,0 +1,92 @@
+User-agent: *
+Allow: /
+
+# Sitemaps
+Sitemap: https://fuelaround.me/sitemap.xml
+
+# Crawl-delay for polite crawling
+Crawl-delay: 1
+
+# Allow all search engines
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 1
+
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+User-agent: Slurp
+Allow: /
+Crawl-delay: 1
+
+User-agent: DuckDuckBot
+Allow: /
+Crawl-delay: 1
+
+User-agent: Baiduspider
+Allow: /
+Crawl-delay: 2
+
+User-agent: YandexBot
+Allow: /
+Crawl-delay: 2
+
+# Block unnecessary resources from crawling
+User-agent: *
+Disallow: /js/
+Disallow: /css/
+Disallow: /api/cache/
+Disallow: *.js$
+Disallow: *.css$
+Disallow: *.woff$
+Disallow: *.woff2$
+Disallow: *.ttf$
+
+# Allow specific API endpoints that might be useful for indexing
+Allow: /api/data.json
+Allow: /api/data.mapbox
+
+# Mobile-specific crawlers
+User-agent: Googlebot-Mobile
+Allow: /
+
+# Image crawlers
+User-agent: Googlebot-Image
+Allow: /icons/
+Allow: *.png$
+Allow: *.jpg$
+Allow: *.jpeg$
+Allow: *.webp$
+
+# Block non-essential crawlers to save bandwidth
+User-agent: CCBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: GPTBot
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: Claude-Web
+Disallow: /
+
+# Social media crawlers (allow for link previews)
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
+
+User-agent: WhatsApp
+Allow: /
+
+# Host
+Host: fuelaround.me

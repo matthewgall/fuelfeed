@@ -291,6 +291,77 @@ class GeolocationManager {
     }
 }
 
+// SEO and social sharing management
+class SEOManager {
+    static updateMetaTags(title, description, url = window.location.href, imageUrl = null) {
+        // Update page title
+        document.title = title;
+        
+        // Update or create meta tags
+        this.updateMetaTag('description', description);
+        this.updateMetaTag('og:title', title, 'property');
+        this.updateMetaTag('og:description', description, 'property');
+        this.updateMetaTag('og:url', url, 'property');
+        this.updateMetaTag('twitter:title', title);
+        this.updateMetaTag('twitter:description', description);
+        
+        // Update canonical URL
+        this.updateCanonicalURL(url);
+        
+        if (imageUrl) {
+            this.updateMetaTag('og:image', imageUrl, 'property');
+            this.updateMetaTag('twitter:image', imageUrl);
+        }
+        
+        console.log('Updated meta tags for sharing:', { title, description, url });
+    }
+    
+    static updateMetaTag(name, content, attribute = 'name') {
+        let element = document.querySelector(`meta[${attribute}="${name}"]`);
+        if (element) {
+            element.setAttribute('content', content);
+        } else {
+            element = document.createElement('meta');
+            element.setAttribute(attribute, name);
+            element.setAttribute('content', content);
+            document.head.appendChild(element);
+        }
+    }
+    
+    static updateCanonicalURL(url) {
+        let canonical = document.querySelector('link[rel="canonical"]');
+        if (canonical) {
+            canonical.setAttribute('href', url);
+        } else {
+            canonical = document.createElement('link');
+            canonical.setAttribute('rel', 'canonical');
+            canonical.setAttribute('href', url);
+            document.head.appendChild(canonical);
+        }
+    }
+    
+    static generateStationSEO(stationData, coordinates) {
+        const brand = stationData.brand || 'Fuel Station';
+        const postcode = stationData.postcode || '';
+        const lowestPrice = stationData.lowest_price;
+        
+        const title = `${brand} ${postcode} - Fuel Prices | fuelaround.me`;
+        const description = lowestPrice 
+            ? `${brand} in ${postcode} - Fuel from £${lowestPrice.toFixed(2)}. Compare live petrol & diesel prices near you. Find cheap fuel today!`
+            : `${brand} in ${postcode} - Compare live fuel prices. Find the cheapest petrol and diesel near you on fuelaround.me`;
+            
+        const stationUrl = URLStateManager.createStationURL(
+            stationData.station_id, 
+            coordinates, 
+            15
+        );
+        
+        this.updateMetaTags(title, description, stationUrl);
+        
+        return { title, description, url: stationUrl };
+    }
+}
+
 // URL state management for shareable links
 class URLStateManager {
     static updateURL(center, zoom, stationId = null) {
@@ -1278,6 +1349,9 @@ map.on('load', function () {
                         const center = { lat: coordinates.lat, lng: coordinates.lng };
                         const zoom = map.getZoom();
                         URLStateManager.updateURL(center, zoom, props.station_id);
+                        
+                        // Update SEO meta tags for social sharing
+                        SEOManager.generateStationSEO(stationData, center);
                     } else {
                         throw new Error('No popup HTML in station data');
                     }
