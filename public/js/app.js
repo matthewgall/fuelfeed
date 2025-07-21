@@ -105,12 +105,12 @@ try {
         minZoom: isMobile ? 6 : 4, // Prevent zooming out too far on mobile
         maxZoom: isMobile ? 14 : 18, // Limit max zoom on mobile
         // Mobile-friendly interaction options
-        touchZoomRotate: !isLowEndMobile, // Disable touch zoom on low-end devices
+        touchZoomRotate: true, // Enable touch zoom for better UX
         dragRotate: false, // Disable rotation for simpler mobile UX
         touchPitch: false, // Disable pitch for simpler mobile UX
         doubleClickZoom: false, // Prevent accidental double-tap zoom
         scrollZoom: isMobile ? false : { around: 'center' }, // Disable scroll zoom on mobile
-        dragPan: !isLowEndMobile, // Disable drag on very low-end devices
+        dragPan: true, // Always enable drag panning
         keyboard: false, // Disable keyboard navigation on mobile
         boxZoom: false, // Disable box zoom on mobile
         trackResize: !isMobile, // Reduce resize tracking on mobile
