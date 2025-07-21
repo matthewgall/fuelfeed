@@ -211,7 +211,8 @@ export class CacheManager {
                                 BrandStandardizer.standardize(stn.address.brand),
                                 stn.address.postcode,
                                 prices.join("<br />"),
-                                false // Cache manager doesn't calculate best prices
+                                false, // Cache manager doesn't calculate best prices
+                                stn.updated
                             ),
                             "fuel_prices": PopupGenerator.generateStructuredPrices(prices.join("<br />")),
                             "updated": stn.updated

@@ -5,7 +5,7 @@ export class PopupGenerator {
     /**
      * Generate complete popup HTML for a fuel station
      */
-    static generatePopupHTML(brand: string, location: string, priceDescription: string, isBestPrice: boolean = false): string {
+    static generatePopupHTML(brand: string, location: string, priceDescription: string, isBestPrice: boolean = false, updatedTime?: string): string {
         const priceItems = this.parsePriceDescription(priceDescription);
         
         return `
@@ -46,6 +46,18 @@ export class PopupGenerator {
                     <div style="margin-top: 8px;">
                         ${priceItems.length > 0 ? priceItems.join('') : '<div style="font-size: 12px; color: #999; font-style: italic;">No price data available</div>'}
                     </div>
+                    ${updatedTime ? `
+                    <div style="
+                        margin-top: 12px; 
+                        padding-top: 10px; 
+                        border-top: 1px solid #f0f0f0;
+                        font-size: 11px; 
+                        color: #888; 
+                        text-align: center;
+                    ">
+                        📅 Updated ${this.formatTimestamp(updatedTime)}
+                    </div>
+                    ` : ''}
                 </div>
             </div>
         `;
@@ -162,5 +174,39 @@ export class PopupGenerator {
         }
 
         return structuredPrices;
+    }
+
+    /**
+     * Format timestamp for display in popup
+     */
+    private static formatTimestamp(timestamp: string): string {
+        try {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diffMs = now.getTime() - date.getTime();
+            const diffMinutes = Math.floor(diffMs / (1000 * 60));
+            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+            // Return relative time format
+            if (diffMinutes < 1) {
+                return 'just now';
+            } else if (diffMinutes < 60) {
+                return `${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''} ago`;
+            } else if (diffHours < 24) {
+                return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+            } else if (diffDays < 7) {
+                return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+            } else {
+                // For older data, show the actual date
+                return date.toLocaleDateString('en-GB', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+                });
+            }
+        } catch (error) {
+            return 'recently';
+        }
     }
 }

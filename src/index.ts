@@ -303,7 +303,8 @@ router.get('/api/data.mapbox', async (request, env, context) => {
             standardizedBrand,
             location,
             priceDescription,
-            isBestPrice
+            isBestPrice,
+            station.stn.updated
         );
         
         // Generate structured price data
