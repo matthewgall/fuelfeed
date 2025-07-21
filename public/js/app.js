@@ -746,13 +746,13 @@ map.on('load', function () {
             
             console.log('Using coordinates for popup:', coordinates);
             
-            // Safe price parsing with error handling
-            const titleParts = (props.title || 'Station').split(', ');
-            const brand = titleParts[0] || 'Station';
-            const location = titleParts.slice(1).join(', ') || '';
-            
-            let priceContent = '';
-            if (props.description) {
+            // Use server-generated popup HTML for better performance
+            let content;
+            if (props.popup_html) {
+                // Use server-generated popup HTML
+                content = props.popup_html;
+            } else if (props.description) {
+                // Fallback: parse description for older data
                 try {
                     const prices = props.description.split('<br />');
                     const priceItems = [];
@@ -810,9 +810,13 @@ map.on('load', function () {
                     console.warn('Price parsing failed:', parseError);
                     priceContent = '<div style="font-size: 12px; color: #999;">Price data unavailable</div>';
                 }
-            }
-            
-            const content = `
+                
+                // Build fallback content for older data without server-generated popup
+                const titleParts = (props.title || 'Station').split(', ');
+                const brand = titleParts[0] || 'Station';
+                const location = titleParts.slice(1).join(', ') || '';
+                
+                content = `
                 <div style="
                     max-width: 320px; 
                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
@@ -854,7 +858,20 @@ map.on('load', function () {
                         </div>
                     </div>
                 </div>
-            `;
+                `;
+            } else {
+                // No popup data available
+                content = `
+                    <div style="
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                        padding: 15px;
+                        text-align: center;
+                        color: #666;
+                    ">
+                        <div style="font-size: 14px;">Station information unavailable</div>
+                    </div>
+                `;
+            }
             
             // Create popup with v3.6.0 compatible options and better error handling
             try {

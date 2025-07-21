@@ -1,5 +1,6 @@
 /// <reference path="../worker-configuration.d.ts" />
 import { BrandStandardizer } from './brand-standardizer'
+import { PopupGenerator } from './popup-generator'
 
 export interface CacheConfig {
     defaultTtl: number;
@@ -206,6 +207,13 @@ export class CacheManager {
                         "properties": {
                             "title": `${BrandStandardizer.standardize(stn.address.brand)}, ${stn.address.postcode}`,
                             "description": prices.join("<br />"),
+                            "popup_html": PopupGenerator.generatePopupHTML(
+                                BrandStandardizer.standardize(stn.address.brand),
+                                stn.address.postcode,
+                                prices.join("<br />"),
+                                false // Cache manager doesn't calculate best prices
+                            ),
+                            "fuel_prices": PopupGenerator.generateStructuredPrices(prices.join("<br />")),
                             "updated": stn.updated
                         }
                     });

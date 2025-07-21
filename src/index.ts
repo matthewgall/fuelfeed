@@ -6,6 +6,7 @@ import { CacheManager } from './cache-manager'
 import { CacheInvalidator } from './cache-invalidator'
 import { FuelCategorizer } from './fuel-categorizer'
 import { BrandStandardizer } from './brand-standardizer'
+import { PopupGenerator } from './popup-generator'
 
 const router = AutoRouter()
 const responseData = {
@@ -261,6 +262,19 @@ router.get('/api/data.mapbox', async (request, env, context) => {
         }
         
         const standardizedBrand = BrandStandardizer.standardize(station.stn.address.brand);
+        const priceDescription = station.prices.join("<br />");
+        const location = station.stn.address.postcode;
+        
+        // Generate server-side popup HTML
+        const popupHTML = PopupGenerator.generatePopupHTML(
+            standardizedBrand,
+            location,
+            priceDescription,
+            isBestPrice
+        );
+        
+        // Generate structured price data
+        const structuredPrices = PopupGenerator.generateStructuredPrices(priceDescription);
         
         features.push({
             "type": "Feature",
@@ -270,7 +284,9 @@ router.get('/api/data.mapbox', async (request, env, context) => {
             },
             "properties": {
                 "title": `${standardizedBrand}, ${station.stn.address.postcode}`,
-                "description": station.prices.join("<br />"),
+                "description": priceDescription, // Keep for backward compatibility
+                "popup_html": popupHTML,
+                "fuel_prices": structuredPrices,
                 "updated": station.stn.updated,
                 "brand": standardizedBrand,
                 "lowest_price": station.lowestPrice,
