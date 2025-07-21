@@ -347,6 +347,19 @@ function loadStationsInView() {
         });
 }
 
+// Client-side safety limits for very low-end devices (backup to server-side filtering)
+const getClientSafetyLimit = () => {
+    // Even more aggressive limits for extremely low-end devices
+    if (navigator.hardwareConcurrency <= 2 && navigator.deviceMemory && navigator.deviceMemory <= 2) {
+        return 50; // Ultra low-end devices
+    }
+    if (isLowEndMobile && window.innerWidth <= 320) {
+        return 75; // Very small, old devices
+    }
+    // For most devices, trust server-side filtering
+    return null; // No client-side limit
+};
+
 // Mobile-optimized debouncing with ultra aggressive delays for very low-end devices  
 let debounceDelay = 500; // Default desktop delay
 if (isLowEndMobile) {
@@ -362,19 +375,6 @@ if (isLowEndMobile) {
 
 const debouncedLoadStations = debounce(loadStationsInView, debounceDelay);
 console.log(`Using ${debounceDelay}ms debounce delay for device optimization`);
-
-// Client-side safety limits for very low-end devices (backup to server-side filtering)
-const getClientSafetyLimit = () => {
-    // Even more aggressive limits for extremely low-end devices
-    if (navigator.hardwareConcurrency <= 2 && navigator.deviceMemory && navigator.deviceMemory <= 2) {
-        return 50; // Ultra low-end devices
-    }
-    if (isLowEndMobile && window.innerWidth <= 320) {
-        return 75; // Very small, old devices
-    }
-    // For most devices, trust server-side filtering
-    return null; // No client-side limit
-};
 
 // Enhanced memory cleanup for mobile with ultra low-end device support
 function cleanupMemory() {
