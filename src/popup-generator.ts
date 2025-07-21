@@ -181,7 +181,33 @@ export class PopupGenerator {
      */
     private static formatTimestamp(timestamp: string): string {
         try {
-            const date = new Date(timestamp);
+            // Parse DD/MM/YYYY HH:mm:ss format (common in UK systems)
+            let date: Date;
+            
+            // Check if it matches DD/MM/YYYY HH:mm:ss format
+            const ukDateMatch = timestamp.match(/^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2}):(\d{2})$/);
+            if (ukDateMatch) {
+                // Extract components and create Date object properly
+                const [, day, month, year, hour, minute, second] = ukDateMatch;
+                // Use Date constructor with individual components (month is 0-indexed)
+                date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 
+                               parseInt(hour), parseInt(minute), parseInt(second));
+            } else {
+                // Try other common formats
+                const ukDateShortMatch = timestamp.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+                if (ukDateShortMatch) {
+                    const [, day, month, year] = ukDateShortMatch;
+                    date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                } else {
+                    // Fallback to standard Date parsing
+                    date = new Date(timestamp);
+                }
+            }
+            
+            // Validate the date is valid
+            if (isNaN(date.getTime())) {
+                return 'recently';
+            }
             const now = new Date();
             const diffMs = now.getTime() - date.getTime();
             const diffMinutes = Math.floor(diffMs / (1000 * 60));
