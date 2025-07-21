@@ -152,6 +152,114 @@ function debounce(func, wait) {
 const stationCache = new StationCache();
 let currentRequest = null;
 
+// Station detail cache for lazy loading
+const stationDetailCache = new Map();
+let detailLoadingCache = new Map(); // Track in-progress loads to prevent duplicates
+
+// Lazy loading functions for station details
+async function loadStationDetail(stationId) {
+    console.log(`Loading station detail for ${stationId}`);
+    
+    // Check cache first
+    if (stationDetailCache.has(stationId)) {
+        console.log(`Station detail ${stationId} loaded from cache`);
+        return stationDetailCache.get(stationId);
+    }
+    
+    // Check if already loading to prevent duplicate requests
+    if (detailLoadingCache.has(stationId)) {
+        console.log(`Station detail ${stationId} already loading, waiting...`);
+        return await detailLoadingCache.get(stationId);
+    }
+    
+    // Create loading promise
+    const loadingPromise = fetchStationDetail(stationId);
+    detailLoadingCache.set(stationId, loadingPromise);
+    
+    try {
+        const stationData = await loadingPromise;
+        
+        // Cache the result
+        stationDetailCache.set(stationId, stationData);
+        console.log(`Station detail ${stationId} loaded and cached`);
+        
+        return stationData;
+    } catch (error) {
+        console.error(`Failed to load station detail ${stationId}:`, error);
+        throw error;
+    } finally {
+        // Clean up loading tracker
+        detailLoadingCache.delete(stationId);
+    }
+}
+
+async function fetchStationDetail(stationId) {
+    const controller = new AbortController();
+    
+    // Set timeout for station detail requests
+    const timeoutMs = isMobile ? 8000 : 5000;
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    
+    try {
+        const response = await fetch(`/api/station/${stationId}`, {
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+            throw new Error(`Station detail request failed: ${response.status} ${response.statusText}`);
+        }
+        
+        return await response.json();
+    } catch (error) {
+        clearTimeout(timeoutId);
+        
+        if (error.name === 'AbortError') {
+            throw new Error('Station detail request timed out');
+        }
+        throw error;
+    }
+}
+
+function showLoadingPopup(coordinates, title) {
+    const loadingContent = `
+        <div style="
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 15px;
+            text-align: center;
+        ">
+            <div style="margin-bottom: 8px; font-weight: 600;">${title}</div>
+            <div style="color: #666; font-size: 14px;">Loading station details...</div>
+            <div style="margin-top: 10px;">
+                <div style="
+                    display: inline-block;
+                    width: 20px;
+                    height: 20px;
+                    border: 2px solid #f0f0f0;
+                    border-left: 2px solid #667eea;
+                    border-radius: 50%;
+                    animation: spin 1s linear infinite;
+                "></div>
+            </div>
+        </div>
+        <style>
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        </style>
+    `;
+    
+    return new maptilersdk.Popup({
+        closeButton: false,
+        className: 'loading-popup'
+    })
+    .setLngLat(coordinates)
+    .setHTML(loadingContent)
+    .addTo(map);
+}
+
 // Popup management and error prevention
 let popupCreationInProgress = false;
 let popupErrorCount = 0;
@@ -733,8 +841,8 @@ map.on('load', function () {
         handlePopupClick(e);
     });
     
-    // Separate popup handling function for better control
-    function handlePopupClick(e) {
+    // Lazy loading popup handler with improved performance
+    async function handlePopupClick(e) {
         // Prevent recursion and limit errors
         if (popupCreationInProgress) {
             console.warn('Popup creation already in progress, skipping');
@@ -763,7 +871,7 @@ map.on('load', function () {
             
             const props = feature.properties;
             
-            // Clean up existing popups using our comprehensive function
+            // Clean up existing popups
             cleanupAllPopups();
             
             // Get coordinates safely with multiple fallback methods
@@ -804,7 +912,69 @@ map.on('load', function () {
             
             console.log('Using coordinates for popup:', coordinates);
             
-            // Use server-generated popup HTML for better performance
+            // NEW: Check if we have station_id for lazy loading
+            if (props.station_id && props.has_prices) {
+                console.log(`Using lazy loading for station ${props.station_id}`);
+                
+                // Show loading popup immediately
+                const loadingPopup = showLoadingPopup(coordinates, props.title || 'Station');
+                activePopup = loadingPopup;
+                
+                try {
+                    // Load station details
+                    const stationData = await loadStationDetail(props.station_id);
+                    
+                    // Remove loading popup
+                    if (loadingPopup) {
+                        loadingPopup.remove();
+                    }
+                    
+                    // Show detailed popup
+                    if (stationData.popup_html) {
+                        activePopup = new maptilersdk.Popup({
+                            className: 'fuel-popup'
+                        })
+                        .setLngLat(coordinates)
+                        .setHTML(stationData.popup_html)
+                        .addTo(map);
+                        
+                        console.log(`Lazy loaded popup for station ${props.station_id}`);
+                    } else {
+                        throw new Error('No popup HTML in station data');
+                    }
+                    
+                } catch (error) {
+                    console.error(`Failed to lazy load station ${props.station_id}:`, error);
+                    
+                    // Remove loading popup
+                    if (loadingPopup) {
+                        loadingPopup.remove();
+                    }
+                    
+                    // Show basic fallback popup
+                    const errorContent = `
+                        <div style="padding: 15px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                            <h3 style="margin: 0 0 10px 0; font-size: 16px;">${props.title || 'Station'}</h3>
+                            <p style="margin: 0; color: #666;">Unable to load station details. Please try again.</p>
+                            ${props.lowest_price ? `<p style="margin: 10px 0 0 0; font-weight: 600;">From £${props.lowest_price.toFixed(2)}</p>` : ''}
+                        </div>
+                    `;
+                    
+                    activePopup = new maptilersdk.Popup({
+                        className: 'fuel-popup'
+                    })
+                    .setLngLat(coordinates)
+                    .setHTML(errorContent)
+                    .addTo(map);
+                }
+                
+                return;
+            }
+            
+            // FALLBACK: Use old popup logic for stations without station_id
+            console.log('Using fallback popup generation for station without station_id');
+            
+            // Create basic popup for stations without detailed data
             let content;
             if (props.popup_html) {
                 // Use server-generated popup HTML
