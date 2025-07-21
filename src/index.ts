@@ -222,7 +222,7 @@ router.get('/api/data.mapbox', async (request, env, _context) => {
             const groupedFuels = FuelCategorizer.groupFuelsByCategory(fuelPrices);
             const orderedFuels = FuelCategorizer.getOrderedFuelEntries(groupedFuels);
             for (const [category, data] of orderedFuels) {
-                const displayText = FuelCategorizer.formatFuelDisplay(category, data.price, data.originalType);
+                const displayText = FuelCategorizer.formatFuelDisplay(category, data.price, data.originalType, data.allPrices);
                 prices.push(displayText);
             }
             
@@ -421,7 +421,7 @@ router.get('/api/station/:stationId', async (request, env, _context) => {
     const groupedFuels = FuelCategorizer.groupFuelsByCategory(fuelPrices);
     const orderedFuels = FuelCategorizer.getOrderedFuelEntries(groupedFuels);
     for (const [category, data] of orderedFuels) {
-        const displayText = FuelCategorizer.formatFuelDisplay(category, data.price, data.originalType);
+        const displayText = FuelCategorizer.formatFuelDisplay(category, data.price, data.originalType, data.allPrices);
         prices.push(displayText);
     }
     

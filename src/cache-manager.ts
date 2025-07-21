@@ -242,7 +242,7 @@ export class CacheManager {
                     const orderedFuels = FuelCategorizer.getOrderedFuelEntries(groupedFuels);
                     let prices: any = [];
                     for (const [category, data] of orderedFuels) {
-                        const displayText = FuelCategorizer.formatFuelDisplay(category, data.price, data.originalType);
+                        const displayText = FuelCategorizer.formatFuelDisplay(category, data.price, data.originalType, data.allPrices);
                         prices.push(displayText);
                     }
                     
