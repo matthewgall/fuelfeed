@@ -19,16 +19,36 @@ export class CacheManager {
     private config: CacheConfig;
     private static readonly TILE_SIZE = 0.1; // degrees
     private static readonly POPULAR_REGIONS = [
+        // Major cities (highest priority)
         { name: 'london', bounds: { west: -0.5, south: 51.3, east: 0.2, north: 51.7 } },
         { name: 'manchester', bounds: { west: -2.4, south: 53.3, east: -2.1, north: 53.6 } },
         { name: 'birmingham', bounds: { west: -2.0, south: 52.4, east: -1.8, north: 52.6 } },
         { name: 'glasgow', bounds: { west: -4.4, south: 55.8, east: -4.1, north: 56.0 } },
-        { name: 'cardiff', bounds: { west: -3.3, south: 51.4, east: -3.0, north: 51.6 } },
         { name: 'liverpool', bounds: { west: -3.1, south: 53.3, east: -2.8, north: 53.5 } },
+        { name: 'leeds', bounds: { west: -1.7, south: 53.7, east: -1.4, north: 53.9 } },
+        
+        // Scotland
+        { name: 'edinburgh', bounds: { west: -3.4, south: 55.9, east: -3.0, north: 56.0 } },
+        { name: 'aberdeen', bounds: { west: -2.3, south: 57.1, east: -2.0, north: 57.2 } },
+        { name: 'dundee', bounds: { west: -3.1, south: 56.4, east: -2.8, north: 56.5 } },
+        { name: 'stirling', bounds: { west: -4.0, south: 56.1, east: -3.7, north: 56.2 } },
+        
+        // Wales
+        { name: 'cardiff', bounds: { west: -3.3, south: 51.4, east: -3.0, north: 51.6 } },
         { name: 'swansea', bounds: { west: -4.1, south: 51.5, east: -3.8, north: 51.7 } },
-        { name: 'reading', bounds: { west: -1.0, south: 51.4, east: -0.8, north: 51.5 } },
-        { name: 'wrexham', bounds: { west: -3.1, south: 52.9, east: -2.8, north: 53.1 } },
-        { name: 'bridgend', bounds: { west: -3.7, south: 51.4, east: -3.4, north: 51.6 } }
+        { name: 'newport', bounds: { west: -3.1, south: 51.5, east: -2.8, north: 51.7 } },
+        
+        // Northern England
+        { name: 'newcastle', bounds: { west: -1.8, south: 54.9, east: -1.5, north: 55.1 } },
+        { name: 'sheffield', bounds: { west: -1.6, south: 53.3, east: -1.3, north: 53.5 } },
+        { name: 'preston', bounds: { west: -2.8, south: 53.7, east: -2.5, north: 53.8 } },
+        
+        // Southern England  
+        { name: 'bristol', bounds: { west: -2.7, south: 51.4, east: -2.4, north: 51.5 } },
+        { name: 'southampton', bounds: { west: -1.5, south: 50.8, east: -1.2, north: 51.0 } },
+        { name: 'brighton', bounds: { west: -0.2, south: 50.8, east: 0.1, north: 50.9 } },
+        { name: 'oxford', bounds: { west: -1.3, south: 51.7, east: -1.2, north: 51.8 } },
+        { name: 'cambridge', bounds: { west: 0.0, south: 52.2, east: 0.3, north: 52.3 } }
     ];
 
     constructor(config: CacheConfig = {
