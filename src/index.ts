@@ -182,8 +182,8 @@ router.get('/api/data.mapbox', async (request, env, _context) => {
         await env.KV.put("fueldata", JSON.stringify(d), { expirationTtl: CACHE_TTL.BASE_DATA })
     }
 
-    // Get cached price thresholds for better performance
-    const priceAnalysis = await getCachedPriceThresholds(env);
+    // Note: Price analysis not needed for lightweight mapbox endpoint
+    // Individual station details will fetch this when needed
 
     // First pass: collect all valid stations with price data
     const validStations: any[] = [];
@@ -236,7 +236,9 @@ router.get('/api/data.mapbox', async (request, env, _context) => {
                 prices,
                 lowestPrice,
                 averagePrice,
-                fuelPrices
+                fuelPrices,
+                brandKey: brand, // Store original brand key
+                stationKey: s    // Store original station key
             });
             
             stationCount++;
@@ -332,22 +334,9 @@ router.get('/api/data.mapbox', async (request, env, _context) => {
         }
         
         const standardizedBrand = BrandStandardizer.standardize(station.stn.address.brand);
-        const priceDescription = station.prices.join("<br />");
         const location = station.stn.address.postcode;
         
-        // Generate server-side popup HTML with dynamic pricing
-        const popupHTML = PopupGenerator.generatePopupHTML(
-            standardizedBrand,
-            location,
-            priceDescription,
-            isBestPrice,
-            station.stn.updated,
-            priceAnalysis
-        );
-        
-        // Generate structured price data
-        const structuredPrices = PopupGenerator.generateStructuredPrices(priceDescription);
-        
+        // Create lightweight feature for fast map loading
         features.push({
             "type": "Feature",
             "geometry": {
@@ -355,16 +344,13 @@ router.get('/api/data.mapbox', async (request, env, _context) => {
                 "coordinates": [station.lng, station.lat]
             },
             "properties": {
-                "title": `${standardizedBrand}, ${station.stn.address.postcode}`,
-                "description": priceDescription, // Keep for backward compatibility
-                "popup_html": popupHTML,
-                "fuel_prices": structuredPrices,
-                "updated": station.stn.updated,
+                "station_id": `${station.brandKey}-${station.stationKey}`, // Unique identifier for detail lookup
+                "title": `${standardizedBrand}, ${location}`,
                 "brand": standardizedBrand,
+                "postcode": location,
                 "lowest_price": station.lowestPrice,
-                "average_price": station.averagePrice,
                 "is_best_price": isBestPrice,
-                "best_fuel_types": bestFuelTypes
+                "has_prices": station.prices.length > 0
             }
         });
     }
@@ -389,6 +375,82 @@ router.get('/api/data.mapbox', async (request, env, _context) => {
     };
     
     return new Response(JSON.stringify(resp), { headers });
+})
+
+// Station detail endpoint for lazy loading
+router.get('/api/station/:stationId', async (request, env, _context) => {
+    const { stationId } = request.params;
+    
+    // Parse station ID (format: "brand-siteid")
+    const [brand, siteId] = stationId.split('-', 2);
+    if (!brand || !siteId) {
+        return new Response(JSON.stringify({ error: 'Invalid station ID format' }), 
+            { ...responseData, status: 400 });
+    }
+    
+    // Get fuel data
+    let d: any = await env.KV.get('fueldata', 'json')
+    if (!d || !d[brand] || !d[brand][siteId]) {
+        return new Response(JSON.stringify({ error: 'Station not found' }), 
+            { ...responseData, status: 404 });
+    }
+    
+    // Get cached price thresholds
+    const priceAnalysis = await getCachedPriceThresholds(env);
+    
+    const station = d[brand][siteId];
+    const standardizedBrand = BrandStandardizer.standardize(station.address.brand);
+    
+    // Process price data
+    let prices: string[] = [];
+    let numericPrices: number[] = [];
+    let fuelPrices: { [key: string]: number } = {};
+    
+    for (let fuel of Object.keys(station.prices)) {
+        let price = station.prices[fuel];
+        
+        if (typeof price === 'number') {
+            const priceInPounds = price > PRICE_THRESHOLDS.PENCE_CONVERSION ? price / 100 : price;
+            numericPrices.push(priceInPounds);
+            fuelPrices[fuel] = priceInPounds;
+        }
+    }
+    
+    // Group fuels by category and create display strings
+    const groupedFuels = FuelCategorizer.groupFuelsByCategory(fuelPrices);
+    for (const [category, data] of Object.entries(groupedFuels)) {
+        const displayText = FuelCategorizer.formatFuelDisplay(category, data.price, data.originalType);
+        prices.push(displayText);
+    }
+    
+    const priceDescription = prices.join("<br />");
+    const lowestPrice = numericPrices.length > 0 ? Math.min(...numericPrices) : null;
+    
+    // Generate server-side popup HTML with dynamic pricing
+    const popupHTML = PopupGenerator.generatePopupHTML(
+        standardizedBrand,
+        station.address.postcode,
+        priceDescription,
+        false, // Individual station requests don't calculate best price
+        station.updated,
+        priceAnalysis
+    );
+    
+    // Generate structured price data
+    const structuredPrices = PopupGenerator.generateStructuredPrices(priceDescription);
+    
+    const response = {
+        station_id: stationId,
+        brand: standardizedBrand,
+        postcode: station.address.postcode,
+        popup_html: popupHTML,
+        fuel_prices: structuredPrices,
+        lowest_price: lowestPrice,
+        updated: station.updated,
+        price_count: prices.length
+    };
+    
+    return new Response(JSON.stringify(response), responseData);
 })
 
 // Cache management endpoint
