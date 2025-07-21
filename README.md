@@ -9,15 +9,25 @@
 
 ## 🌟 Features
 
+### Core Functionality
 - **🗺️ Interactive Map** - Explore fuel stations across the UK with real-time price data
+- **📍 Geolocation Support** - Automatically centers map on your location with one-tap positioning
+- **🔗 Shareable Links** - URL state management for bookmarking and sharing specific map positions
 - **💰 Best Price Highlighting** - Automatically identifies and highlights the cheapest fuel stations
-- **📱 Mobile Optimized** - Responsive design with touch-friendly controls and performance optimizations
-- **⚡ Lightning Fast** - Powered by Cloudflare Workers with intelligent caching
 - **🔄 Real-time Updates** - Aggregates data from 15+ major UK fuel retailers every 30 minutes
-- **🎯 Smart Filtering** - Fuel type categorization (Unleaded, Diesel, Premium) with color-coded pricing
+
+### Smart Pricing & Display
+- **🎯 Consistent Fuel Ordering** - Standardized display: Unleaded → Diesel → Premium for easy comparison
+- **🧠 Dynamic Price Analysis** - Market-based thresholds that adapt to current fuel price trends  
 - **🏆 Competitive Analysis** - Advanced algorithms for best price detection with tie-breaking logic
-- **📍 Viewport Persistence** - Remembers your last viewed location and returns you there on reload
-- **📱 Offline Support** - Comprehensive offline functionality with cached fuel data and map tiles
+- **🎨 Smart Filtering** - Fuel type categorization with color-coded pricing (green/amber/red)
+
+### Performance & Experience
+- **⚡ Lazy Loading** - Station details load on-demand for faster map performance
+- **📱 Mobile Optimized** - Device-aware rendering with touch controls and performance limits
+- **🌐 Offline Support** - Comprehensive offline functionality with cached fuel data and map tiles
+- **💾 Smart Caching** - Multi-tier caching with popular region pre-warming
+- **🔧 Viewport Persistence** - Remembers your last viewed location and returns you there on reload
 
 ## 🚀 Quick Start
 
@@ -100,22 +110,31 @@ FuelFeed aggregates data from major UK fuel retailers:
 
 ```
 fuelfeed/
-├── src/                    # Backend TypeScript source
-│   ├── index.ts           # Main Worker entry point
-│   ├── cache-manager.ts   # Intelligent caching system
-│   ├── fuel-categorizer.ts # Fuel type classification
-│   ├── price-normalizer.ts # Price standardization
-│   └── fuel.ts           # Core fuel data processing
-├── public/                # Frontend assets
+├── src/                           # Backend TypeScript source
+│   ├── index.ts                  # Main Worker entry point & API routes
+│   ├── cache-manager.ts          # Multi-tier caching with spatial tiling
+│   ├── fuel-categorizer.ts       # Fuel type classification & ordering
+│   ├── brand-standardizer.ts     # Brand name normalization
+│   ├── popup-generator.ts        # Server-side popup HTML generation
+│   ├── geographic-filter.ts      # Device-aware geographic optimization
+│   ├── dynamic-pricing.ts        # Market-based price analysis
+│   ├── cache-invalidator.ts      # Smart cache management
+│   ├── constants.ts              # Configuration constants
+│   └── fuel.ts                   # Core fuel data processing
+├── public/                       # Frontend assets
 │   ├── js/
-│   │   ├── app.js        # Main application logic
-│   │   ├── station-cache.js # Client-side caching
-│   │   └── worker.js     # Service worker
-│   └── index.html        # Main application page
-├── test/                  # Test suite
-├── mirror.mjs            # Data mirroring script
-├── feeds.json            # Data source configuration
-└── wrangler.toml         # Cloudflare Worker configuration
+│   │   └── app.js               # Complete application with geolocation & lazy loading
+│   ├── css/
+│   │   └── styles.css           # Responsive styling
+│   ├── icons/                   # App icons for PWA
+│   ├── manifest.json            # PWA manifest
+│   ├── service-worker.js        # Offline functionality
+│   └── index.html              # Main application page
+├── test/                         # Test suite
+├── mirror.mjs                    # Data mirroring script
+├── feeds.json                    # Data source configuration
+├── wrangler.toml                # Cloudflare Worker configuration
+└── worker-configuration.d.ts    # TypeScript definitions
 ```
 
 ### Key Components
@@ -155,17 +174,26 @@ Super, V-Power → Premium
 ### API Endpoints
 
 ```bash
-# Get all fuel data
+# Get all fuel data (complete dataset)
 GET /api/data.json
 
-# Get map-optimized data
+# Get map-optimized GeoJSON data
 GET /api/data.mapbox
 
-# Get data for specific bounding box
+# Get data for specific bounding box with geographic filtering
 GET /api/data.mapbox?bbox=west,south,east,north
 
-# Get limited results for mobile
+# Get limited results for mobile devices
 GET /api/data.mapbox?limit=300
+
+# Get data with center point for proximity sorting
+GET /api/data.mapbox?center=lng,lat
+
+# Get individual station details (lazy loading)
+GET /api/station/:stationId
+
+# Get cache statistics and performance metrics
+GET /api/cache/stats
 ```
 
 ### Testing
@@ -183,14 +211,21 @@ node test/test-mirror.mjs
 ### Debugging
 
 ```bash
-# Browser console commands for viewport management
+# Browser console commands for location & viewport management
 resetViewport()        # Clear saved location and reload
 getViewportInfo()      # View stored vs current viewport
+getCurrentLocation()   # Test geolocation functionality
+clearLocationCache()   # Clear cached location data
 
-# Offline cache management
+# Station and cache management  
 getCacheStatus()       # View cache statistics and storage usage
+clearStationCache()    # Clear cached station details
+refreshStations()      # Refresh station data for current view
 clearFuelCache()       # Clear cached fuel data
 forceFuelUpdate()      # Force background fuel data update
+
+# URL state management
+window.location.href = '?lat=51.5074&lng=-0.1278&zoom=12'  # Test shareable links
 ```
 
 ### Data Mirroring
