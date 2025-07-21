@@ -22,7 +22,13 @@ export class CacheManager {
         { name: 'london', bounds: { west: -0.5, south: 51.3, east: 0.2, north: 51.7 } },
         { name: 'manchester', bounds: { west: -2.4, south: 53.3, east: -2.1, north: 53.6 } },
         { name: 'birmingham', bounds: { west: -2.0, south: 52.4, east: -1.8, north: 52.6 } },
-        { name: 'glasgow', bounds: { west: -4.4, south: 55.8, east: -4.1, north: 56.0 } }
+        { name: 'glasgow', bounds: { west: -4.4, south: 55.8, east: -4.1, north: 56.0 } },
+        { name: 'cardiff', bounds: { west: -3.3, south: 51.4, east: -3.0, north: 51.6 } },
+        { name: 'liverpool', bounds: { west: -3.1, south: 53.3, east: -2.8, north: 53.5 } },
+        { name: 'swansea', bounds: { west: -4.1, south: 51.5, east: -3.8, north: 51.7 } },
+        { name: 'reading', bounds: { west: -1.0, south: 51.4, east: -0.8, north: 51.5 } },
+        { name: 'wrexham', bounds: { west: -3.1, south: 52.9, east: -2.8, north: 53.1 } },
+        { name: 'bridgend', bounds: { west: -3.7, south: 51.4, east: -3.4, north: 51.6 } }
     ];
 
     constructor(config: CacheConfig = {
