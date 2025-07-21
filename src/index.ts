@@ -7,6 +7,7 @@ import { CacheInvalidator } from './cache-invalidator'
 import { FuelCategorizer } from './fuel-categorizer'
 import { BrandStandardizer } from './brand-standardizer'
 import { PopupGenerator } from './popup-generator'
+import { GeographicFilter } from './geographic-filter'
 
 const router = AutoRouter()
 const responseData = {
@@ -101,22 +102,33 @@ router.get('/api/data.mapbox', async (request, env, context) => {
         enableEdgeCache: true
     });
     
-    // Parse bounding box and limit parameters
+    // Parse query parameters and detect device capabilities
     const url = new URL(request.url);
     const bbox = url.searchParams.get('bbox');
     const limitParam = url.searchParams.get('limit');
-    let bounds: { west: number, south: number, east: number, north: number } | null = null;
+    const centerParam = url.searchParams.get('center');
+    
+    // Parse bounding box using GeographicFilter
+    const bounds = bbox ? GeographicFilter.parseBoundingBox(bbox) : null;
+    
+    // Detect device capabilities from User-Agent
+    const userAgent = request.headers.get('User-Agent') || '';
+    const deviceCapabilities = GeographicFilter.detectDeviceCapabilities(userAgent);
+    
+    // Override max stations if limit is explicitly requested
     let requestedLimit = limitParam ? parseInt(limitParam) : null;
-
-    if (bbox) {
-        const coords = bbox.split(',').map(Number);
-        if (coords.length === 4 && coords.every(coord => !isNaN(coord))) {
-            bounds = {
-                west: coords[0],
-                south: coords[1], 
-                east: coords[2],
-                north: coords[3]
-            };
+    if (requestedLimit) {
+        deviceCapabilities.maxStations = Math.min(requestedLimit, deviceCapabilities.maxStations);
+    }
+    
+    // Parse center point for proximity sorting
+    let centerLat: number | undefined;
+    let centerLng: number | undefined;
+    if (centerParam) {
+        const [lng, lat] = centerParam.split(',').map(parseFloat);
+        if (!isNaN(lng) && !isNaN(lat)) {
+            centerLng = lng;
+            centerLat = lat;
         }
     }
 
@@ -138,7 +150,8 @@ router.get('/api/data.mapbox', async (request, env, context) => {
     // First pass: collect all valid stations with price data
     const validStations: any[] = [];
     let stationCount = 0;
-    const maxStations = requestedLimit || (bounds ? 5000 : 10000);
+    // Use a larger initial limit for server-side processing, then apply geographic filtering
+    const maxStations = bounds ? 10000 : 15000;
     
     for (let brand of Object.keys(d)) {
         for (let s of Object.keys(d[brand])) {
@@ -146,17 +159,13 @@ router.get('/api/data.mapbox', async (request, env, context) => {
             
             let stn: any = d[brand][s];
             
-            // Quick validation and bounds check
+            // Quick validation - no bounds check here, we'll do it later with GeographicFilter
             if (!stn.location || typeof stn.location.longitude !== 'number' || typeof stn.location.latitude !== 'number') {
                 continue;
             }
             
             const lng = stn.location.longitude;
             const lat = stn.location.latitude;
-            
-            if (bounds && (lng < bounds.west || lng > bounds.east || lat < bounds.south || lat > bounds.north)) {
-                continue;
-            }
             
             // Process price data with fuel categorization
             let prices: any = [];
@@ -233,10 +242,35 @@ router.get('/api/data.mapbox', async (request, env, context) => {
         }
     }
     
+    // Apply server-side geographic filtering and optimization
+    const geoFilteredStations = GeographicFilter.filterAndOptimizeStations(
+        validStations.map(station => ({
+            geometry: {
+                coordinates: [station.lng, station.lat]
+            },
+            properties: {
+                lowest_price: station.lowestPrice,
+                average_price: station.averagePrice,
+                is_best_price: false // Will be calculated below
+            },
+            // Keep original station data
+            _originalStation: station
+        })),
+        bounds || undefined,
+        deviceCapabilities,
+        centerLat,
+        centerLng
+    );
+    
+    // Extract the original station data back
+    const filteredValidStations = geoFilteredStations.map(feature => feature._originalStation);
+    
+    console.log(`Server-side filtering: ${validStations.length} -> ${filteredValidStations.length} stations`);
+    
     // Third pass: create features with highlighting flags
     const features: any[] = [];
     
-    for (const station of validStations) {
+    for (const station of filteredValidStations) {
         let isBestPrice = false;
         let bestFuelTypes: string[] = [];
         
@@ -308,7 +342,9 @@ router.get('/api/data.mapbox', async (request, env, context) => {
     const headers = {
         ...responseData.headers,
         ...cacheManager.createCacheHeaders(Date.now().toString(), CACHE_TTL.MAPBOX_DATA),
-        'X-Station-Count': stationCount.toString(),
+        'X-Station-Count': features.length.toString(),
+        'X-Filtered-Count': `${stationCount}->${features.length}`,
+        'X-Device-Type': deviceCapabilities.isMobile ? (deviceCapabilities.isLowEndMobile ? 'low-mobile' : 'mobile') : 'desktop',
         'X-Cache-Key': cacheKey
     };
     

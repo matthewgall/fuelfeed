@@ -242,9 +242,11 @@ function loadStationsInView() {
         console.log('Loading stations from cache');
         const cachedData = stationCache.getStations(bounds);
         
-        // Limit stations on mobile devices
-        if (isMobile && cachedData.features.length > getMaxStations()) {
-            cachedData.features = cachedData.features.slice(0, getMaxStations());
+        // Apply client-side safety limits for ultra low-end devices
+        const clientLimit = getClientSafetyLimit();
+        if (clientLimit && cachedData.features && cachedData.features.length > clientLimit) {
+            cachedData.features = cachedData.features.slice(0, clientLimit);
+            console.log(`Client-side safety limit: reduced cached data to ${clientLimit} stations`);
         }
         
         try {
@@ -265,11 +267,12 @@ function loadStationsInView() {
         currentRequest.abort();
     }
     
-    // Create bbox parameter for API with station limit
-    const maxStations = getMaxStations();
+    // Create bbox parameter for API with center point (let server handle limits)
     const bbox = `${bounds.west},${bounds.south},${bounds.east},${bounds.north}`;
-    const url = `/api/data.mapbox?bbox=${bbox}&limit=${maxStations}`;
-    console.log(`Fetching max ${maxStations} stations from API for bounds:`, bbox);
+    const center = map.getCenter();
+    const centerParam = `${center.lng},${center.lat}`;
+    const url = `/api/data.mapbox?bbox=${bbox}&center=${centerParam}`;
+    console.log(`Fetching stations from API for bounds: ${bbox}, center: ${centerParam}`);
     
     // Show loading indicator
     const loadingIndicator = document.getElementById('loading-indicator');
@@ -279,11 +282,23 @@ function loadStationsInView() {
     const controller = new AbortController();
     currentRequest = controller;
     
-    // Add timeout for mobile devices
-    const timeoutId = isLowEndMobile ? setTimeout(() => {
+    // Add adaptive timeout based on device capabilities
+    let timeoutMs = null;
+    if (isLowEndMobile) {
+        const clientLimit = getClientSafetyLimit();
+        if (clientLimit && clientLimit <= 50) {
+            timeoutMs = 20000; // Ultra low-end: 20 second timeout
+        } else {
+            timeoutMs = 15000; // Low-end mobile: 15 second timeout
+        }
+    } else if (isMobile) {
+        timeoutMs = 10000; // Regular mobile: 10 second timeout
+    }
+    
+    const timeoutId = timeoutMs ? setTimeout(() => {
         controller.abort();
-        console.warn('Request timeout on low-end mobile');
-    }, 10000) : null;
+        console.warn(`Request timeout after ${timeoutMs}ms on mobile device`);
+    }, timeoutMs) : null;
     
     // Fetch data with abort signal
     fetch(url, { signal: controller.signal })
@@ -291,10 +306,11 @@ function loadStationsInView() {
         .then(data => {
             if (timeoutId) clearTimeout(timeoutId);
             
-            // Limit stations for mobile performance
-            if (isMobile && data.features && data.features.length > maxStations) {
-                data.features = data.features.slice(0, maxStations);
-                console.log(`Limited to ${maxStations} stations for mobile performance`);
+            // Apply client-side safety limits for ultra low-end devices
+            const clientLimit = getClientSafetyLimit();
+            if (clientLimit && data.features && data.features.length > clientLimit) {
+                data.features = data.features.slice(0, clientLimit);
+                console.log(`Client-side safety limit: reduced to ${clientLimit} stations for ultra low-end device`);
             }
             
             // Update the data source with new data
@@ -331,18 +347,36 @@ function loadStationsInView() {
         });
 }
 
-// Mobile-optimized debouncing with longer delay on mobile
-const debounceDelay = isLowEndMobile ? 2000 : isMobile ? 1500 : 500; // Much longer delays for stability
-const debouncedLoadStations = debounce(loadStationsInView, debounceDelay);
+// Mobile-optimized debouncing with ultra aggressive delays for very low-end devices  
+let debounceDelay = 500; // Default desktop delay
+if (isLowEndMobile) {
+    const clientLimit = getClientSafetyLimit();
+    if (clientLimit && clientLimit <= 50) {
+        debounceDelay = 4000; // Ultra low-end devices: 4 second delay
+    } else {
+        debounceDelay = 2000; // Low-end mobile: 2 second delay  
+    }
+} else if (isMobile) {
+    debounceDelay = 1500; // Regular mobile: 1.5 second delay
+}
 
-// Station limits based on device capability
-const getMaxStations = () => {
-    if (isLowEndMobile) return 100; // Very low limit for low-end devices
-    if (isMobile) return 300; // Moderate limit for mobile
-    return 1000; // Higher limit for desktop
+const debouncedLoadStations = debounce(loadStationsInView, debounceDelay);
+console.log(`Using ${debounceDelay}ms debounce delay for device optimization`);
+
+// Client-side safety limits for very low-end devices (backup to server-side filtering)
+const getClientSafetyLimit = () => {
+    // Even more aggressive limits for extremely low-end devices
+    if (navigator.hardwareConcurrency <= 2 && navigator.deviceMemory && navigator.deviceMemory <= 2) {
+        return 50; // Ultra low-end devices
+    }
+    if (isLowEndMobile && window.innerWidth <= 320) {
+        return 75; // Very small, old devices
+    }
+    // For most devices, trust server-side filtering
+    return null; // No client-side limit
 };
 
-// Memory cleanup for mobile
+// Enhanced memory cleanup for mobile with ultra low-end device support
 function cleanupMemory() {
     if (isMobile) {
         // Force garbage collection hint
@@ -351,8 +385,32 @@ function cleanupMemory() {
         }
         
         // Clear all popups on mobile for memory
-        const oldPopups = document.querySelectorAll('.mapboxgl-popup');
+        const oldPopups = document.querySelectorAll('.mapboxgl-popup, .maplibregl-popup');
         oldPopups.forEach(popup => popup.remove());
+        
+        // Ultra aggressive cleanup for very low-end devices
+        const clientLimit = getClientSafetyLimit();
+        if (clientLimit && clientLimit <= 50) {
+            // Clear cache more aggressively
+            if (stationCache) {
+                stationCache.clearExpiredEntries();
+                // Keep only most recent cache entry on ultra low-end devices
+                stationCache.cache.forEach((value, key, map) => {
+                    if (map.size > 1) {
+                        const entries = Array.from(map.entries());
+                        const sortedByTime = entries.sort((a, b) => b[1].timestamp - a[1].timestamp);
+                        // Keep only the most recent entry
+                        map.clear();
+                        map.set(sortedByTime[0][0], sortedByTime[0][1]);
+                    }
+                });
+            }
+            
+            // Clear console logs to free memory
+            if (console.clear && typeof console.clear === 'function') {
+                console.clear();
+            }
+        }
         
         // Clear event listeners cache if it exists
         if (window.maptilersdk && map._listeners) {

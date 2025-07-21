@@ -105,14 +105,8 @@ class StationCache {
                 // Update access order for LRU
                 this.updateAccessOrder(tile.key);
                 
-                // Filter stations to exact bounds (tiles may overlap)
-                const filteredStations = entry.stations.filter(station => {
-                    const coord = station.geometry.coordinates;
-                    return coord[0] >= bounds.west && coord[0] <= bounds.east &&
-                           coord[1] >= bounds.south && coord[1] <= bounds.north;
-                });
-                
-                allStations.push(...filteredStations);
+                // Server handles geographic filtering, use cached data directly
+                allStations.push(...entry.stations);
             }
         });
         
