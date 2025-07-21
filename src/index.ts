@@ -5,6 +5,7 @@ import { PriceNormalizer } from './price-normalizer'
 import { CacheManager } from './cache-manager'
 import { CacheInvalidator } from './cache-invalidator'
 import { FuelCategorizer } from './fuel-categorizer'
+import { BrandStandardizer } from './brand-standardizer'
 
 const router = AutoRouter()
 const responseData = {
@@ -259,6 +260,8 @@ router.get('/api/data.mapbox', async (request, env, context) => {
             }
         }
         
+        const standardizedBrand = BrandStandardizer.standardize(station.stn.address.brand);
+        
         features.push({
             "type": "Feature",
             "geometry": {
@@ -266,10 +269,10 @@ router.get('/api/data.mapbox', async (request, env, context) => {
                 "coordinates": [station.lng, station.lat]
             },
             "properties": {
-                "title": `${station.stn.address.brand}, ${station.stn.address.postcode}`,
+                "title": `${standardizedBrand}, ${station.stn.address.postcode}`,
                 "description": station.prices.join("<br />"),
                 "updated": station.stn.updated,
-                "brand": station.stn.address.brand,
+                "brand": standardizedBrand,
                 "lowest_price": station.lowestPrice,
                 "average_price": station.averagePrice,
                 "is_best_price": isBestPrice,

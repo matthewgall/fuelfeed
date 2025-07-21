@@ -1,4 +1,5 @@
 /// <reference path="../worker-configuration.d.ts" />
+import { BrandStandardizer } from './brand-standardizer'
 
 export interface CacheConfig {
     defaultTtl: number;
@@ -203,7 +204,7 @@ export class CacheManager {
                             "coordinates": [lng, lat]
                         },
                         "properties": {
-                            "title": `${stn.address.brand}, ${stn.address.postcode}`,
+                            "title": `${BrandStandardizer.standardize(stn.address.brand)}, ${stn.address.postcode}`,
                             "description": prices.join("<br />"),
                             "updated": stn.updated
                         }
