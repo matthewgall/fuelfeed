@@ -10,6 +10,95 @@ class PriceAnalytics {
         this.overlayVisible = false;
         this.currentZoomLevel = 6;
         this.updateInterval = null;
+        
+        // Cross-platform icon mappings
+        this.icons = {
+            chart: '📊',
+            thermometer: '🌡️',
+            fuel: '⛽',
+            truck: '🚛',
+            diamond: '💎',
+            star: '⭐',
+            warning: '⚠️',
+            target: '🎯',
+            money: '💰',
+            trophy: '🏆',
+            search: '🔍',
+            bulb: '💡',
+            trendUp: '📈',
+            trendDown: '📉',
+            trendFlat: '➡️'
+        };
+        
+        // Fallback text for systems without emoji support
+        this.fallbacks = {
+            chart: '[STATS]',
+            thermometer: '[HEAT]',
+            fuel: '[FUEL]',
+            truck: '[DIESEL]',
+            diamond: '[SUPER]',
+            star: '[GOOD]',
+            warning: '[WARN]',
+            target: '[OK]',
+            money: '[SAVE]',
+            trophy: '[BEST]',
+            search: '[FIND]',
+            bulb: '[TIP]',
+            trendUp: '[UP]',
+            trendDown: '[DOWN]',
+            trendFlat: '[SAME]'
+        };
+    }
+
+    /**
+     * Get icon with fallback support
+     */
+    getIcon(key) {
+        // Check if emojis are supported
+        if (this.supportsEmoji()) {
+            return this.icons[key] || '•';
+        }
+        return this.fallbacks[key] || '[?]';
+    }
+
+    /**
+     * Check if the system supports emoji rendering
+     */
+    supportsEmoji() {
+        // Check if we've already determined emoji support
+        if (this.emojiSupport !== undefined) {
+            return this.emojiSupport;
+        }
+
+        // Create a test canvas to check emoji rendering
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = 20;
+            canvas.height = 20;
+            const ctx = canvas.getContext('2d');
+            
+            if (!ctx) {
+                this.emojiSupport = false;
+                return false;
+            }
+
+            // Try to render a simple emoji
+            ctx.fillStyle = '#000';
+            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'center';
+            ctx.font = '16px serif';
+            ctx.fillText('😀', 10, 10);
+            
+            // Check if anything was actually rendered
+            const imageData = ctx.getImageData(0, 0, 20, 20);
+            const hasPixels = imageData.data.some(channel => channel !== 0);
+            
+            this.emojiSupport = hasPixels;
+            return this.emojiSupport;
+        } catch (e) {
+            this.emojiSupport = false;
+            return false;
+        }
     }
 
     /**
@@ -138,13 +227,13 @@ class PriceAnalytics {
         
         const html = `
             <div class="stats-header">
-                <h3>📊 ${regionType} Price Statistics</h3>
+                <h3>${this.getIcon('chart')} ${regionType} Price Statistics</h3>
                 <span class="station-count">${stats.all.stationCount} stations</span>
             </div>
             <div class="stats-grid">
-                ${this.createFuelStatsHTML('⛽ Unleaded', stats.unleaded, 'unleaded')}
-                ${this.createFuelStatsHTML('🚛 Diesel', stats.diesel, 'diesel')}
-                ${this.createFuelStatsHTML('💎 Super', stats.superUnleaded, 'super')}
+                ${this.createFuelStatsHTML(`${this.getIcon('fuel')} Unleaded`, stats.unleaded, 'unleaded')}
+                ${this.createFuelStatsHTML(`${this.getIcon('truck')} Diesel`, stats.diesel, 'diesel')}
+                ${this.createFuelStatsHTML(`${this.getIcon('diamond')} Super`, stats.superUnleaded, 'super')}
             </div>
             <div class="stats-summary">
                 <div class="summary-item">
@@ -343,6 +432,10 @@ class PriceAnalytics {
             .price-stats-overlay .insight-icon {
                 font-size: 14px;
                 flex-shrink: 0;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                font-weight: 600;
+                min-width: 20px;
+                text-align: center;
             }
             .price-stats-overlay .insight-text {
                 color: #34495e;
@@ -526,7 +619,7 @@ class PriceAnalytics {
     createToggleButton(map) {
         const button = document.createElement('button');
         button.id = 'stats-toggle-button';
-        button.innerHTML = '📊';
+        button.innerHTML = this.getIcon('chart');
         button.title = 'Toggle Price Statistics';
         button.style.cssText = `
             position: fixed;
@@ -547,6 +640,12 @@ class PriceAnalytics {
             touch-action: manipulation;
             user-select: none;
             -webkit-user-select: none;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-weight: 600;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         `;
 
         button.addEventListener('mouseenter', () => {
@@ -602,8 +701,8 @@ class PriceAnalytics {
     createRegionalComparisonHTML(comparison) {
         if (!comparison) return '';
         
-        const trendIcon = comparison.trend > 0.02 ? '📈' : 
-                         comparison.trend < -0.02 ? '📉' : '➡️';
+        const trendIcon = comparison.trend > 0.02 ? this.getIcon('trendUp') : 
+                         comparison.trend < -0.02 ? this.getIcon('trendDown') : this.getIcon('trendFlat');
         const trendColor = comparison.trend > 0.02 ? '#e74c3c' : 
                           comparison.trend < -0.02 ? '#27ae60' : '#95a5a6';
         
@@ -649,7 +748,7 @@ class PriceAnalytics {
         
         return `
             <div class="price-insights">
-                <h4>💡 Price Insights</h4>
+                <h4>${this.getIcon('bulb')} Price Insights</h4>
                 <div class="insights-list">
                     ${insights.map(insight => `
                         <div class="insight-item">
@@ -672,12 +771,12 @@ class PriceAnalytics {
         const spread = stats.all.max - stats.all.min;
         if (spread > 0.15) {
             insights.push({
-                icon: '💰',
+                icon: this.getIcon('money'),
                 text: `High price variation: Save up to £${(spread * 50).toFixed(0)} on 50L tank`
             });
         } else if (spread < 0.05) {
             insights.push({
-                icon: '🎯',
+                icon: this.getIcon('target'),
                 text: 'Consistent pricing in this area'
             });
         }
@@ -688,7 +787,7 @@ class PriceAnalytics {
             const dieselRatio = stats.diesel.avg / stats.unleaded.avg;
             if (dieselRatio < 1.03) {
                 insights.push({
-                    icon: '🚛',
+                    icon: this.getIcon('truck'),
                     text: 'Diesel particularly competitive here'
                 });
             }
@@ -697,12 +796,12 @@ class PriceAnalytics {
         // Station density
         if (stats.all.stationCount > 20) {
             insights.push({
-                icon: '🏆',
+                icon: this.getIcon('trophy'),
                 text: `${stats.all.stationCount} stations - great choice available`
             });
         } else if (stats.all.stationCount < 5) {
             insights.push({
-                icon: '🔍',
+                icon: this.getIcon('search'),
                 text: 'Limited options - consider wider search'
             });
         }
@@ -710,12 +809,12 @@ class PriceAnalytics {
         // Price quality assessment
         if (stats.all.avg < 1.40) {
             insights.push({
-                icon: '⭐',
+                icon: this.getIcon('star'),
                 text: 'Excellent prices in this area!'
             });
         } else if (stats.all.avg > 1.55) {
             insights.push({
-                icon: '⚠️',
+                icon: this.getIcon('warning'),
                 text: 'Above average prices - consider alternatives'
             });
         }
@@ -935,7 +1034,7 @@ class PriceAnalytics {
     createHeatmapButton(map) {
         const button = document.createElement('button');
         button.id = 'heatmap-toggle-button';
-        button.innerHTML = '🌡️';
+        button.innerHTML = this.getIcon('thermometer');
         button.title = 'Toggle Price Heatmap';
         button.style.cssText = `
             position: fixed;
@@ -952,6 +1051,12 @@ class PriceAnalytics {
             z-index: 999;
             backdrop-filter: blur(10px);
             transition: all 0.2s ease;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-weight: 600;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         `;
 
         button.addEventListener('mouseenter', () => {
