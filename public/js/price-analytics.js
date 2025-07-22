@@ -12,100 +12,111 @@ class PriceAnalytics {
         this.updateInterval = null;
         this.map = null;
         
-        // Lucide icon mappings (using kebab-case names)
-        this.icons = {
-            chart: 'chart-bar',
-            thermometer: 'thermometer',
-            fuel: 'fuel', 
-            truck: 'truck',
-            diamond: 'gem',
-            star: 'star',
-            warning: 'alert-triangle',
-            target: 'target',
-            money: 'pound-sterling',
-            trophy: 'trophy',
-            search: 'search',
-            bulb: 'lightbulb',
-            trendUp: 'trending-up',
-            trendDown: 'trending-down',
-            trendFlat: 'minus'
+        // Icon system with emoji-first approach using Noto Color Emoji
+        this.iconMappings = {
+            chart: { emoji: '📊', lucide: 'bar-chart-3', text: 'STATS' },
+            thermometer: { emoji: '🌡️', lucide: 'thermometer', text: 'HEAT' },
+            fuel: { emoji: '⛽', lucide: 'fuel', text: 'FUEL' },
+            truck: { emoji: '🚛', lucide: 'truck', text: 'DIESEL' },
+            diamond: { emoji: '💎', lucide: 'gem', text: 'SUPER' },
+            star: { emoji: '⭐', lucide: 'star', text: 'GOOD' },
+            warning: { emoji: '⚠️', lucide: 'alert-triangle', text: 'WARN' },
+            target: { emoji: '🎯', lucide: 'target', text: 'OK' },
+            money: { emoji: '💰', lucide: 'pound-sterling', text: 'SAVE' },
+            trophy: { emoji: '🏆', lucide: 'trophy', text: 'BEST' },
+            search: { emoji: '🔍', lucide: 'search', text: 'FIND' },
+            bulb: { emoji: '💡', lucide: 'lightbulb', text: 'TIP' },
+            trendUp: { emoji: '📈', lucide: 'trending-up', text: 'UP' },
+            trendDown: { emoji: '📉', lucide: 'trending-down', text: 'DOWN' },
+            trendFlat: { emoji: '➡️', lucide: 'minus', text: 'SAME' }
         };
     }
 
     /**
-     * Get Lucide icon HTML
+     * Create emoji element with Noto Color Emoji font
      */
-    getIcon(key, size = 16) {
-        const iconName = this.icons[key];
-        if (!iconName) return '';
-        
-        // Check if Lucide is available and has the icon
-        if (typeof lucide !== 'undefined' && lucide.icons && lucide.icons[iconName]) {
+    createEmojiElement(emoji, size = 16) {
+        const span = document.createElement('span');
+        span.textContent = emoji;
+        span.className = 'noto-emoji';
+        span.style.cssText = `
+            font-family: "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", emoji, sans-serif;
+            font-size: ${size}px;
+            display: inline-block;
+            vertical-align: middle;
+            line-height: 1;
+            font-style: normal;
+            font-weight: normal;
+            text-rendering: optimizeLegibility;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        `;
+        return span;
+    }
+
+    /**
+     * Get icon with comprehensive fallback system
+     */
+    getIcon(key, size = 16, forceEmoji = false) {
+        const mapping = this.iconMappings[key];
+        if (!mapping) return '•';
+
+        // Force emoji mode or try emoji first
+        if (forceEmoji || this.preferEmoji()) {
+            return `<span class="noto-emoji" style="font-family: 'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji', emoji, sans-serif; font-size: ${size}px; display: inline-block; vertical-align: middle; line-height: 1;">${mapping.emoji}</span>`;
+        }
+
+        // Try Lucide SVG
+        if (typeof lucide !== 'undefined' && lucide.icons && lucide.icons[mapping.lucide]) {
             try {
-                // Use the proper Lucide API
-                const iconHtml = lucide.icons[iconName].toSvg({
+                return lucide.icons[mapping.lucide].toSvg({
                     width: size,
                     height: size,
                     'stroke-width': 2
                 });
-                return iconHtml;
             } catch (e) {
-                console.warn(`Failed to create Lucide icon: ${iconName}`, e);
+                console.warn(`Failed to create Lucide icon: ${mapping.lucide}`, e);
             }
         }
-        
-        // Fallback to emojis
-        const fallbacks = {
-            chart: '📊',
-            thermometer: '🌡️',
-            fuel: '⛽',
-            truck: '🚛',
-            diamond: '💎',
-            star: '⭐',
-            warning: '⚠️',
-            target: '🎯',
-            money: '💰',
-            trophy: '🏆',
-            search: '🔍',
-            bulb: '💡',
-            trendUp: '📈',
-            trendDown: '📉',
-            trendFlat: '➡️'
-        };
-        return fallbacks[key] || '•';
+
+        // Fallback to emoji
+        return `<span class="noto-emoji" style="font-family: 'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji', emoji, sans-serif; font-size: ${size}px; display: inline-block; vertical-align: middle; line-height: 1;">${mapping.emoji}</span>`;
     }
 
     /**
-     * Create icon element for buttons
+     * Check if emojis should be preferred (based on user preference or system)
+     */
+    preferEmoji() {
+        // Check local storage preference
+        const preference = localStorage.getItem('icon-preference');
+        if (preference === 'emoji') return true;
+        if (preference === 'svg') return false;
+
+        // Auto-detect based on system capabilities
+        // Default to emoji since we're loading Noto Color Emoji
+        return true;
+    }
+
+    /**
+     * Create icon element for buttons with emoji priority
      */
     createIconElement(key, size = 20) {
-        const iconName = this.icons[key];
-        if (!iconName) return null;
+        const mapping = this.iconMappings[key];
+        if (!mapping) return null;
         
         const container = document.createElement('span');
-        container.style.display = 'flex';
-        container.style.alignItems = 'center';
-        container.style.justifyContent = 'center';
+        container.style.cssText = `
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: ${size + 4}px;
+            height: ${size + 4}px;
+        `;
         
-        // Check if Lucide is available and has the icon
-        if (typeof lucide !== 'undefined' && lucide.icons && lucide.icons[iconName]) {
-            try {
-                // Use the proper Lucide API to create SVG string
-                const iconHtml = lucide.icons[iconName].toSvg({
-                    width: size,
-                    height: size,
-                    'stroke-width': 2
-                });
-                container.innerHTML = iconHtml;
-                return container;
-            } catch (e) {
-                console.warn(`Failed to create Lucide icon element: ${iconName}`, e);
-            }
-        }
+        // Always prefer emoji with Noto Color Emoji for buttons
+        const emojiElement = this.createEmojiElement(mapping.emoji, size);
+        container.appendChild(emojiElement);
         
-        // Fallback to emoji
-        container.innerHTML = this.getIcon(key, size);
-        container.style.fontSize = `${size}px`;
         return container;
     }
 
@@ -596,12 +607,28 @@ class PriceAnalytics {
                 }
             }
             
-            /* Icon styling */
+            /* Icon styling for both SVG and emoji */
             #stats-toggle-button svg,
             #heatmap-toggle-button svg {
                 stroke: currentColor;
                 stroke-width: 2;
                 fill: none;
+            }
+            
+            /* Ensure emoji display properly with Noto Color Emoji */
+            .noto-emoji, .price-stats-overlay .noto-emoji {
+                font-family: "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", "Twemoji Mozilla", emoji, sans-serif !important;
+                font-style: normal !important;
+                font-weight: normal !important;
+                text-rendering: optimizeLegibility !important;
+                -webkit-font-feature-settings: "liga" off !important;
+                font-feature-settings: "liga" off !important;
+            }
+            
+            /* Button emoji specific styling */
+            #stats-toggle-button .noto-emoji,
+            #heatmap-toggle-button .noto-emoji {
+                filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));
             }
         `;
         
@@ -1203,7 +1230,15 @@ class PriceAnalytics {
             });
         }
         
-        console.log('📊 Price Analytics initialized' + (this.isMobileDevice() ? ' (Mobile mode)' : ''));
+        console.log('📊 Price Analytics initialized' + (this.isMobileDevice() ? ' (Mobile mode)' : '') + ' - Using Noto Color Emoji');
+        
+        // Add icon preference toggle (can be accessed via console)
+        window.setIconPreference = (preference) => {
+            if (['emoji', 'svg'].includes(preference)) {
+                localStorage.setItem('icon-preference', preference);
+                location.reload();
+            }
+        };
     }
 
     /**
