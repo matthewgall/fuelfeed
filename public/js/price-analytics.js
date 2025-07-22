@@ -11,94 +11,103 @@ class PriceAnalytics {
         this.currentZoomLevel = 6;
         this.updateInterval = null;
         
-        // Cross-platform icon mappings
+        // Lucide icon mappings
         this.icons = {
-            chart: '📊',
-            thermometer: '🌡️',
-            fuel: '⛽',
-            truck: '🚛',
-            diamond: '💎',
-            star: '⭐',
-            warning: '⚠️',
-            target: '🎯',
-            money: '💰',
-            trophy: '🏆',
-            search: '🔍',
-            bulb: '💡',
-            trendUp: '📈',
-            trendDown: '📉',
-            trendFlat: '➡️'
+            chart: 'bar-chart-3',
+            thermometer: 'thermometer',
+            fuel: 'fuel',
+            truck: 'truck',
+            diamond: 'gem',
+            star: 'star',
+            warning: 'alert-triangle',
+            target: 'target',
+            money: 'pound-sterling',
+            trophy: 'trophy',
+            search: 'search',
+            bulb: 'lightbulb',
+            trendUp: 'trending-up',
+            trendDown: 'trending-down',
+            trendFlat: 'minus'
         };
+    }
+
+    /**
+     * Get Lucide icon HTML
+     */
+    getIcon(key, size = 16) {
+        const iconName = this.icons[key];
+        if (!iconName) return '';
         
-        // Fallback text for systems without emoji support
-        this.fallbacks = {
-            chart: '[STATS]',
-            thermometer: '[HEAT]',
-            fuel: '[FUEL]',
-            truck: '[DIESEL]',
-            diamond: '[SUPER]',
-            star: '[GOOD]',
-            warning: '[WARN]',
-            target: '[OK]',
-            money: '[SAVE]',
-            trophy: '[BEST]',
-            search: '[FIND]',
-            bulb: '[TIP]',
-            trendUp: '[UP]',
-            trendDown: '[DOWN]',
-            trendFlat: '[SAME]'
-        };
-    }
-
-    /**
-     * Get icon with fallback support
-     */
-    getIcon(key) {
-        // Check if emojis are supported
-        if (this.supportsEmoji()) {
-            return this.icons[key] || '•';
+        // Check if Lucide is available
+        if (typeof lucide === 'undefined') {
+            // Fallback to simple HTML entity or text
+            const fallbacks = {
+                chart: '📊',
+                thermometer: '🌡️',
+                fuel: '⛽',
+                truck: '🚛',
+                diamond: '💎',
+                star: '⭐',
+                warning: '⚠️',
+                target: '🎯',
+                money: '💰',
+                trophy: '🏆',
+                search: '🔍',
+                bulb: '💡',
+                trendUp: '📈',
+                trendDown: '📉',
+                trendFlat: '➡️'
+            };
+            return fallbacks[key] || '•';
         }
-        return this.fallbacks[key] || '[?]';
-    }
-
-    /**
-     * Check if the system supports emoji rendering
-     */
-    supportsEmoji() {
-        // Check if we've already determined emoji support
-        if (this.emojiSupport !== undefined) {
-            return this.emojiSupport;
-        }
-
-        // Create a test canvas to check emoji rendering
+        
+        // Create Lucide icon
         try {
-            const canvas = document.createElement('canvas');
-            canvas.width = 20;
-            canvas.height = 20;
-            const ctx = canvas.getContext('2d');
-            
-            if (!ctx) {
-                this.emojiSupport = false;
-                return false;
+            const iconElement = lucide.createElement(iconName);
+            if (iconElement) {
+                iconElement.setAttribute('width', size);
+                iconElement.setAttribute('height', size);
+                iconElement.style.display = 'inline-block';
+                iconElement.style.verticalAlign = 'middle';
+                return iconElement.outerHTML;
             }
-
-            // Try to render a simple emoji
-            ctx.fillStyle = '#000';
-            ctx.textBaseline = 'middle';
-            ctx.textAlign = 'center';
-            ctx.font = '16px serif';
-            ctx.fillText('😀', 10, 10);
-            
-            // Check if anything was actually rendered
-            const imageData = ctx.getImageData(0, 0, 20, 20);
-            const hasPixels = imageData.data.some(channel => channel !== 0);
-            
-            this.emojiSupport = hasPixels;
-            return this.emojiSupport;
         } catch (e) {
-            this.emojiSupport = false;
-            return false;
+            console.warn(`Failed to create Lucide icon: ${iconName}`, e);
         }
+        
+        // Final fallback
+        return '•';
+    }
+
+    /**
+     * Create icon element for buttons
+     */
+    createIconElement(key, size = 20) {
+        const iconName = this.icons[key];
+        if (!iconName) return null;
+        
+        // Check if Lucide is available
+        if (typeof lucide === 'undefined') {
+            const span = document.createElement('span');
+            span.innerHTML = this.getIcon(key, size);
+            return span;
+        }
+        
+        try {
+            const iconElement = lucide.createElement(iconName);
+            if (iconElement) {
+                iconElement.setAttribute('width', size);
+                iconElement.setAttribute('height', size);
+                iconElement.style.display = 'block';
+                return iconElement;
+            }
+        } catch (e) {
+            console.warn(`Failed to create Lucide icon element: ${iconName}`, e);
+        }
+        
+        const span = document.createElement('span');
+        span.textContent = '•';
+        return span;
     }
 
     /**
@@ -436,6 +445,15 @@ class PriceAnalytics {
                 font-weight: 600;
                 min-width: 20px;
                 text-align: center;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .price-stats-overlay .insight-icon svg {
+                width: 14px;
+                height: 14px;
+                stroke: currentColor;
+                stroke-width: 2;
             }
             .price-stats-overlay .insight-text {
                 color: #34495e;
@@ -578,6 +596,14 @@ class PriceAnalytics {
                     bottom: 10px !important;
                 }
             }
+            
+            /* Icon styling */
+            #stats-toggle-button svg,
+            #heatmap-toggle-button svg {
+                stroke: currentColor;
+                stroke-width: 2;
+                fill: none;
+            }
         `;
         
         if (!document.getElementById('price-analytics-styles')) {
@@ -619,7 +645,12 @@ class PriceAnalytics {
     createToggleButton(map) {
         const button = document.createElement('button');
         button.id = 'stats-toggle-button';
-        button.innerHTML = this.getIcon('chart');
+        const iconElement = this.createIconElement('chart', 20);
+        if (iconElement) {
+            button.appendChild(iconElement);
+        } else {
+            button.innerHTML = this.getIcon('chart', 20);
+        }
         button.title = 'Toggle Price Statistics';
         button.style.cssText = `
             position: fixed;
@@ -1034,7 +1065,12 @@ class PriceAnalytics {
     createHeatmapButton(map) {
         const button = document.createElement('button');
         button.id = 'heatmap-toggle-button';
-        button.innerHTML = this.getIcon('thermometer');
+        const iconElement = this.createIconElement('thermometer', 18);
+        if (iconElement) {
+            button.appendChild(iconElement);
+        } else {
+            button.innerHTML = this.getIcon('thermometer', 18);
+        }
         button.title = 'Toggle Price Heatmap';
         button.style.cssText = `
             position: fixed;
