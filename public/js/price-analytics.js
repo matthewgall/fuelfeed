@@ -203,8 +203,8 @@ class PriceAnalytics {
         overlay.className = 'price-stats-overlay';
         overlay.style.cssText = `
             position: fixed;
-            top: 20px;
-            right: 20px;
+            bottom: 80px;
+            left: 20px;
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
             border-radius: 12px;
@@ -358,9 +358,9 @@ class PriceAnalytics {
             /* Mobile responsive */
             @media (max-width: 768px) {
                 .price-stats-overlay {
-                    top: 10px;
-                    right: 10px;
+                    bottom: 70px;
                     left: 10px;
+                    right: 10px;
                     max-width: none;
                     min-width: 0;
                 }
@@ -369,6 +369,14 @@ class PriceAnalytics {
                 }
                 .price-stats-overlay .insight-icon {
                     font-size: 12px;
+                }
+                #stats-toggle-button {
+                    bottom: 15px !important;
+                    left: 15px !important;
+                }
+                #heatmap-toggle-button {
+                    bottom: 15px !important;
+                    left: 65px !important;
                 }
             }
         `;
@@ -416,8 +424,8 @@ class PriceAnalytics {
         button.title = 'Toggle Price Statistics';
         button.style.cssText = `
             position: fixed;
-            top: 80px;
-            right: 20px;
+            bottom: 20px;
+            left: 20px;
             width: 44px;
             height: 44px;
             background: rgba(255, 255, 255, 0.9);
@@ -770,8 +778,8 @@ class PriceAnalytics {
         button.title = 'Toggle Price Heatmap';
         button.style.cssText = `
             position: fixed;
-            top: 130px;
-            right: 20px;
+            bottom: 20px;
+            left: 70px;
             width: 44px;
             height: 44px;
             background: rgba(255, 255, 255, 0.9);
