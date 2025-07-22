@@ -618,16 +618,20 @@ class PriceAnalytics {
      * Toggle the statistics overlay visibility
      */
     toggleOverlay() {
+        console.log('📊 toggleOverlay called, current state:', this.overlayVisible);
         this.overlayVisible = !this.overlayVisible;
         let overlay = document.getElementById('price-stats-overlay');
         
         if (this.overlayVisible) {
+            console.log('📊 Showing overlay, existing overlay:', !!overlay);
             // Show overlay - create it if it doesn't exist
             if (!overlay) {
                 // Try to get current station data to show stats
                 if (window.lastStationData) {
+                    console.log('📊 Using lastStationData with', window.lastStationData.features?.length || 0, 'stations');
                     this.updateStatistics(window.lastStationData);
                 } else {
+                    console.log('📊 No station data, creating empty overlay');
                     // Create empty overlay with message
                     this.createEmptyOverlay();
                 }
@@ -772,6 +776,7 @@ class PriceAnalytics {
         button.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
+            console.log('📊 Statistics button clicked, lastStationData available:', !!window.lastStationData);
             const isVisible = this.toggleOverlay();
             button.style.background = isVisible ? 'rgba(52, 152, 219, 0.9)' : 'rgba(255, 255, 255, 0.9)';
             button.style.color = isVisible ? 'white' : 'black';
@@ -1248,6 +1253,7 @@ class PriceAnalytics {
         button.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
+            console.log('🌡️ Heatmap button clicked, lastStationData available:', !!window.lastStationData);
             const isVisible = this.toggleHeatmap(map);
             button.style.background = isVisible ? 'rgba(241, 196, 15, 0.9)' : 'rgba(255, 255, 255, 0.9)';
             button.style.color = isVisible ? 'white' : 'black';
