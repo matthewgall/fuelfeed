@@ -11,11 +11,11 @@ class PriceAnalytics {
         this.currentZoomLevel = 6;
         this.updateInterval = null;
         
-        // Lucide icon mappings
+        // Lucide icon mappings (using kebab-case names)
         this.icons = {
-            chart: 'bar-chart-3',
+            chart: 'chart-bar',
             thermometer: 'thermometer',
-            fuel: 'fuel',
+            fuel: 'fuel', 
             truck: 'truck',
             diamond: 'gem',
             star: 'star',
@@ -38,45 +38,40 @@ class PriceAnalytics {
         const iconName = this.icons[key];
         if (!iconName) return '';
         
-        // Check if Lucide is available
-        if (typeof lucide === 'undefined') {
-            // Fallback to simple HTML entity or text
-            const fallbacks = {
-                chart: '📊',
-                thermometer: '🌡️',
-                fuel: '⛽',
-                truck: '🚛',
-                diamond: '💎',
-                star: '⭐',
-                warning: '⚠️',
-                target: '🎯',
-                money: '💰',
-                trophy: '🏆',
-                search: '🔍',
-                bulb: '💡',
-                trendUp: '📈',
-                trendDown: '📉',
-                trendFlat: '➡️'
-            };
-            return fallbacks[key] || '•';
-        }
-        
-        // Create Lucide icon
-        try {
-            const iconElement = lucide.createElement(iconName);
-            if (iconElement) {
-                iconElement.setAttribute('width', size);
-                iconElement.setAttribute('height', size);
-                iconElement.style.display = 'inline-block';
-                iconElement.style.verticalAlign = 'middle';
-                return iconElement.outerHTML;
+        // Check if Lucide is available and has the icon
+        if (typeof lucide !== 'undefined' && lucide.icons && lucide.icons[iconName]) {
+            try {
+                // Use the proper Lucide API
+                const iconHtml = lucide.icons[iconName].toSvg({
+                    width: size,
+                    height: size,
+                    'stroke-width': 2
+                });
+                return iconHtml;
+            } catch (e) {
+                console.warn(`Failed to create Lucide icon: ${iconName}`, e);
             }
-        } catch (e) {
-            console.warn(`Failed to create Lucide icon: ${iconName}`, e);
         }
         
-        // Final fallback
-        return '•';
+        // Fallback to emojis
+        const fallbacks = {
+            chart: '📊',
+            thermometer: '🌡️',
+            fuel: '⛽',
+            truck: '🚛',
+            diamond: '💎',
+            star: '⭐',
+            warning: '⚠️',
+            target: '🎯',
+            money: '💰',
+            trophy: '🏆',
+            search: '🔍',
+            bulb: '💡',
+            trendUp: '📈',
+            trendDown: '📉',
+            trendFlat: '➡️'
+        };
+        return fallbacks[key] || '•';
     }
 
     /**
@@ -86,28 +81,31 @@ class PriceAnalytics {
         const iconName = this.icons[key];
         if (!iconName) return null;
         
-        // Check if Lucide is available
-        if (typeof lucide === 'undefined') {
-            const span = document.createElement('span');
-            span.innerHTML = this.getIcon(key, size);
-            return span;
-        }
+        const container = document.createElement('span');
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        container.style.justifyContent = 'center';
         
-        try {
-            const iconElement = lucide.createElement(iconName);
-            if (iconElement) {
-                iconElement.setAttribute('width', size);
-                iconElement.setAttribute('height', size);
-                iconElement.style.display = 'block';
-                return iconElement;
+        // Check if Lucide is available and has the icon
+        if (typeof lucide !== 'undefined' && lucide.icons && lucide.icons[iconName]) {
+            try {
+                // Use the proper Lucide API to create SVG string
+                const iconHtml = lucide.icons[iconName].toSvg({
+                    width: size,
+                    height: size,
+                    'stroke-width': 2
+                });
+                container.innerHTML = iconHtml;
+                return container;
+            } catch (e) {
+                console.warn(`Failed to create Lucide icon element: ${iconName}`, e);
             }
-        } catch (e) {
-            console.warn(`Failed to create Lucide icon element: ${iconName}`, e);
         }
         
-        const span = document.createElement('span');
-        span.textContent = '•';
-        return span;
+        // Fallback to emoji
+        container.innerHTML = this.getIcon(key, size);
+        container.style.fontSize = `${size}px`;
+        return container;
     }
 
     /**
