@@ -358,25 +358,131 @@ class PriceAnalytics {
             /* Mobile responsive */
             @media (max-width: 768px) {
                 .price-stats-overlay {
-                    bottom: 70px;
-                    left: 10px;
-                    right: 10px;
-                    max-width: none;
-                    min-width: 0;
+                    position: fixed !important;
+                    bottom: 80px !important;
+                    left: 10px !important;
+                    right: 10px !important;
+                    max-width: none !important;
+                    min-width: 0 !important;
+                    width: auto !important;
+                    font-size: 13px;
+                    padding: 12px;
+                    transform: none !important;
+                    z-index: 1001 !important;
+                }
+                .price-stats-overlay .stats-header h3 {
+                    font-size: 14px;
+                }
+                .price-stats-overlay .fuel-avg {
+                    font-size: 16px;
                 }
                 .price-stats-overlay .insight-item {
                     font-size: 11px;
+                    padding: 6px 8px;
+                    min-height: 32px;
+                    display: flex;
+                    align-items: center;
+                }
+                .price-stats-overlay .insight-icon {
+                    font-size: 14px;
+                    min-width: 20px;
+                }
+                .price-stats-overlay .summary-item {
+                    margin-bottom: 6px;
+                    min-height: 24px;
+                    display: flex;
+                    align-items: center;
+                }
+                .price-stats-overlay .fuel-stat {
+                    padding: 12px;
+                    margin-bottom: 8px;
+                }
+                #stats-toggle-button {
+                    position: fixed !important;
+                    bottom: 15px !important;
+                    left: 15px !important;
+                    width: 48px !important;
+                    height: 48px !important;
+                    font-size: 20px !important;
+                    min-width: 48px !important;
+                    min-height: 48px !important;
+                    z-index: 1000 !important;
+                }
+                #heatmap-toggle-button {
+                    position: fixed !important;
+                    bottom: 15px !important;
+                    left: 70px !important;
+                    width: 48px !important;
+                    height: 48px !important;
+                    font-size: 18px !important;
+                    min-width: 48px !important;
+                    min-height: 48px !important;
+                    z-index: 1000 !important;
+                }
+            }
+            
+            /* Extra small mobile devices */
+            @media (max-width: 480px) {
+                .price-stats-overlay {
+                    bottom: 70px !important;
+                    left: 5px !important;
+                    right: 5px !important;
+                    padding: 10px;
+                    font-size: 12px;
+                    max-height: 70vh !important;
+                    overflow-y: auto !important;
+                }
+                .price-stats-overlay .stats-header h3 {
+                    font-size: 13px;
+                }
+                .price-stats-overlay .fuel-avg {
+                    font-size: 15px;
+                }
+                .price-stats-overlay .insight-item {
+                    font-size: 10px;
+                    padding: 4px 6px;
+                    min-height: 28px;
                 }
                 .price-stats-overlay .insight-icon {
                     font-size: 12px;
+                    min-width: 18px;
+                }
+                .price-stats-overlay .fuel-stat {
+                    padding: 8px;
+                    margin-bottom: 6px;
                 }
                 #stats-toggle-button {
-                    bottom: 15px !important;
-                    left: 15px !important;
+                    bottom: 10px !important;
+                    left: 10px !important;
+                    width: 44px !important;
+                    height: 44px !important;
+                    font-size: 18px !important;
+                    min-width: 44px !important;
+                    min-height: 44px !important;
                 }
                 #heatmap-toggle-button {
-                    bottom: 15px !important;
-                    left: 65px !important;
+                    bottom: 10px !important;
+                    left: 60px !important;
+                    width: 44px !important;
+                    height: 44px !important;
+                    font-size: 16px !important;
+                    min-width: 44px !important;
+                    min-height: 44px !important;
+                }
+            }
+            
+            /* Landscape orientation on mobile */
+            @media (max-width: 896px) and (orientation: landscape) {
+                .price-stats-overlay {
+                    bottom: 60px !important;
+                    max-height: 60vh !important;
+                    overflow-y: auto !important;
+                }
+                #stats-toggle-button {
+                    bottom: 10px !important;
+                }
+                #heatmap-toggle-button {
+                    bottom: 10px !important;
                 }
             }
         `;
@@ -437,6 +543,10 @@ class PriceAnalytics {
             z-index: 999;
             backdrop-filter: blur(10px);
             transition: all 0.2s ease;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
         `;
 
         button.addEventListener('mouseenter', () => {
@@ -449,10 +559,26 @@ class PriceAnalytics {
             button.style.transform = 'scale(1)';
         });
 
-        button.addEventListener('click', () => {
+        button.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             const isVisible = this.toggleOverlay();
             button.style.background = isVisible ? 'rgba(52, 152, 219, 0.9)' : 'rgba(255, 255, 255, 0.9)';
             button.style.color = isVisible ? 'white' : 'black';
+        });
+
+        // Add touch events for better mobile interaction
+        button.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            button.style.background = 'rgba(255, 255, 255, 1)';
+            button.style.transform = 'scale(1.05)';
+        });
+
+        button.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            const isActive = this.overlayVisible;
+            button.style.background = isActive ? 'rgba(52, 152, 219, 0.9)' : 'rgba(255, 255, 255, 0.9)';
+            button.style.transform = 'scale(1)';
         });
 
         document.body.appendChild(button);
@@ -732,14 +858,33 @@ class PriceAnalytics {
     }
 
     /**
+     * Check if device is mobile
+     */
+    isMobileDevice() {
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+               window.innerWidth <= 768 ||
+               ('ontouchstart' in window);
+    }
+
+    /**
      * Initialize price analytics
      */
     init(map) {
+        // Add mobile-specific viewport meta tag if not present
+        if (this.isMobileDevice() && !document.querySelector('meta[name="viewport"]')) {
+            const viewport = document.createElement('meta');
+            viewport.name = 'viewport';
+            viewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+            document.head.appendChild(viewport);
+        }
+
         this.createToggleButton(map);
         this.createHeatmapButton(map);
         
         // Auto-update stats when map moves (debounced)
         let updateTimeout;
+        const debounceDelay = this.isMobileDevice() ? 1500 : 1000; // Longer delay on mobile
+        
         map.on('moveend', () => {
             clearTimeout(updateTimeout);
             updateTimeout = setTimeout(() => {
@@ -762,10 +907,26 @@ class PriceAnalytics {
                         this.createPriceHeatmap(map, window.lastStationData);
                     }
                 }
-            }, 1000);
+            }, debounceDelay);
         });
+
+        // Add orientation change listener for mobile
+        if (this.isMobileDevice()) {
+            window.addEventListener('orientationchange', () => {
+                setTimeout(() => {
+                    const overlay = document.getElementById('price-stats-overlay');
+                    if (overlay && this.overlayVisible) {
+                        // Force layout recalculation
+                        overlay.style.display = 'none';
+                        setTimeout(() => {
+                            overlay.style.display = 'block';
+                        }, 100);
+                    }
+                }, 500);
+            });
+        }
         
-        console.log('📊 Price Analytics initialized');
+        console.log('📊 Price Analytics initialized' + (this.isMobileDevice() ? ' (Mobile mode)' : ''));
     }
 
     /**
@@ -804,10 +965,26 @@ class PriceAnalytics {
             button.style.transform = 'scale(1)';
         });
 
-        button.addEventListener('click', () => {
+        button.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             const isVisible = this.toggleHeatmap(map);
             button.style.background = isVisible ? 'rgba(241, 196, 15, 0.9)' : 'rgba(255, 255, 255, 0.9)';
             button.style.color = isVisible ? 'white' : 'black';
+        });
+
+        // Add touch events for better mobile interaction
+        button.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            button.style.background = 'rgba(255, 255, 255, 1)';
+            button.style.transform = 'scale(1.05)';
+        });
+
+        button.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            const isActive = map.getSource('price-heatmap');
+            button.style.background = isActive ? 'rgba(241, 196, 15, 0.9)' : 'rgba(255, 255, 255, 0.9)';
+            button.style.transform = 'scale(1)';
         });
 
         document.body.appendChild(button);
