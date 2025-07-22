@@ -618,11 +618,50 @@ class PriceAnalytics {
      */
     toggleOverlay() {
         this.overlayVisible = !this.overlayVisible;
-        const overlay = document.getElementById('price-stats-overlay');
-        if (overlay) {
-            overlay.style.display = this.overlayVisible ? 'block' : 'none';
+        let overlay = document.getElementById('price-stats-overlay');
+        
+        if (this.overlayVisible) {
+            // Show overlay - create it if it doesn't exist
+            if (!overlay) {
+                // Try to get current station data to show stats
+                if (window.lastStationData) {
+                    this.updateStatistics(window.lastStationData);
+                } else {
+                    // Create empty overlay with message
+                    this.createEmptyOverlay();
+                }
+                overlay = document.getElementById('price-stats-overlay');
+            }
+            if (overlay) {
+                overlay.style.display = 'block';
+            }
+        } else {
+            // Hide overlay
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
         }
+        
         return this.overlayVisible;
+    }
+
+    /**
+     * Create empty overlay when no data is available
+     */
+    createEmptyOverlay() {
+        const overlay = document.createElement('div');
+        overlay.id = 'price-stats-overlay';
+        overlay.className = 'price-stats-overlay';
+        overlay.innerHTML = `
+            <div class="stats-header">
+                <h3>${this.getIcon('chart')} Price Statistics</h3>
+            </div>
+            <div style="text-align: center; padding: 20px; color: #666;">
+                <p>Move the map to view stations and generate price statistics.</p>
+                <p style="font-size: 12px; margin-top: 10px;">Statistics will appear automatically when fuel stations are loaded.</p>
+            </div>
+        `;
+        document.body.appendChild(overlay);
     }
 
     /**

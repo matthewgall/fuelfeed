@@ -1676,9 +1676,12 @@ map.on('load', function () {
     
     // Initialize Price Analytics
     try {
-        if (window.priceAnalytics) {
+        if (typeof PriceAnalytics !== 'undefined') {
+            window.priceAnalytics = new PriceAnalytics();
             window.priceAnalytics.init(map);
             console.log('📊 Price analytics initialized successfully');
+        } else {
+            console.warn('PriceAnalytics class not found');
         }
     } catch (error) {
         console.warn('Failed to initialize price analytics:', error);
