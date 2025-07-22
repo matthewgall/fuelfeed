@@ -1011,17 +1011,73 @@ class PriceAnalytics {
     toggleHeatmap(map) {
         if (map.getSource('price-heatmap')) {
             // Remove heatmap
-            map.removeLayer('price-heatmap-layer');
-            map.removeSource('price-heatmap');
-            return false;
+            try {
+                map.removeLayer('price-heatmap-layer');
+                map.removeSource('price-heatmap');
+                console.log('🌡️ Price heatmap hidden');
+                return false;
+            } catch (e) {
+                console.warn('Error removing heatmap:', e);
+                return false;
+            }
         } else {
             // Add heatmap if we have data
-            if (window.lastStationData) {
-                this.createPriceHeatmap(map, window.lastStationData);
-                return true;
+            if (window.lastStationData && window.lastStationData.features && window.lastStationData.features.length > 0) {
+                try {
+                    this.createPriceHeatmap(map, window.lastStationData);
+                    console.log('🌡️ Price heatmap shown');
+                    return true;
+                } catch (e) {
+                    console.warn('Error creating heatmap:', e);
+                    return false;
+                }
+            } else {
+                // Show message if no data available
+                this.showHeatmapMessage('Move the map to load fuel stations for heatmap visualization.');
+                console.log('🌡️ No station data available for heatmap');
+                return false;
             }
         }
-        return false;
+    }
+
+    /**
+     * Show temporary message for heatmap status
+     */
+    showHeatmapMessage(message) {
+        // Remove any existing message
+        const existingMessage = document.getElementById('heatmap-message');
+        if (existingMessage) {
+            existingMessage.remove();
+        }
+
+        // Create temporary message overlay
+        const messageDiv = document.createElement('div');
+        messageDiv.id = 'heatmap-message';
+        messageDiv.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 10000;
+            max-width: 300px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        `;
+        messageDiv.textContent = message;
+        
+        document.body.appendChild(messageDiv);
+        
+        // Auto-remove after 3 seconds
+        setTimeout(() => {
+            if (messageDiv && messageDiv.parentNode) {
+                messageDiv.remove();
+            }
+        }, 3000);
     }
 
     /**
