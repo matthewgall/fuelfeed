@@ -31,9 +31,9 @@ export class PopupGenerator {
                         font-weight: 600;
                         line-height: 1.2;
                     ">
-                        ${isBestPrice ? '🏆 ' : ''}${brand}
+                        ${isBestPrice ? '<span class="noto-emoji">🏆</span> ' : ''}${brand}
                     </h3>
-                    ${location ? `<div style="font-size: 11px; opacity: 0.9; margin-top: 4px; line-height: 1.3;">📍 ${location}</div>` : ''}
+                    ${location ? `<div style="font-size: 11px; opacity: 0.9; margin-top: 4px; line-height: 1.3;"><span class="noto-emoji">📍</span> ${location}</div>` : ''}
                 </div>
                 <div style="padding: 15px;">
                     <h4 style="

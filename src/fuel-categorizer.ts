@@ -1,5 +1,7 @@
 /// <reference path="../worker-configuration.d.ts" />
 
+import { EmojiUtils } from './utils/emoji-utils.js';
+
 export interface FuelCategory {
     name: string;
     displayName: string;
@@ -13,31 +15,31 @@ export class FuelCategorizer {
             name: 'unleaded',
             displayName: 'Unleaded',
             types: ['E10', 'unleaded', 'petrol', 'gasoline', 'regular'],
-            icon: '⛽'
+            icon: EmojiUtils.getEmoji('fuel')
         },
         {
             name: 'super_unleaded',
             displayName: 'Super Unleaded',
             types: ['E5', 'super unleaded', 'super petrol', 'premium unleaded', 'v-power unleaded', 'momentum 99'],
-            icon: '💎'
+            icon: EmojiUtils.getEmoji('diamond')
         },
         {
             name: 'diesel',
             displayName: 'Diesel',
             types: ['B7', 'diesel', 'gasoil', 'regular diesel'],
-            icon: '🚛'
+            icon: EmojiUtils.getEmoji('truck')
         },
         {
             name: 'super_diesel',
             displayName: 'Super Diesel',
             types: ['SDV', 'super diesel', 'premium diesel', 'v-power diesel', 'ultimate diesel', 'city diesel'],
-            icon: '🚛💎'
+            icon: EmojiUtils.getEmoji('dieselSuper')
         },
         {
             name: 'lpg',
             displayName: 'LPG',
             types: ['LPG', 'autogas', 'propane'],
-            icon: '🔥'
+            icon: EmojiUtils.getEmoji('fire')
         }
     ];
 
@@ -163,7 +165,7 @@ export class FuelCategorizer {
 
     static getCategoryIcon(categoryName: string): string {
         const category = this.FUEL_CATEGORIES.find(c => c.name === categoryName);
-        return category ? category.icon : '⛽';
+        return category ? category.icon : EmojiUtils.getEmoji('fuel');
     }
 
     static formatFuelDisplay(categoryName: string, price: number, originalType: string, allPrices?: number[]): string {
