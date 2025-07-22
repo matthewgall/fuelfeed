@@ -756,6 +756,14 @@ function loadStationsInView() {
         try {
             if (map.getSource && map.getSource('stations')) {
                 map.getSource('stations').setData(cachedData);
+                
+                // Store cached data globally for price analytics
+                window.lastStationData = cachedData;
+                
+                // Update price analytics if available
+                if (window.priceAnalytics && window.priceAnalytics.overlayVisible) {
+                    window.priceAnalytics.updateStatistics(cachedData, bounds);
+                }
             } else {
                 console.warn('Stations source not available for cached data');
             }
@@ -821,6 +829,17 @@ function loadStationsInView() {
             try {
                 if (map.getSource && map.getSource('stations')) {
                     map.getSource('stations').setData(data);
+                    
+                    // Store data globally for price analytics
+                    window.lastStationData = data;
+                    
+                    // Update price analytics if available
+                    if (window.priceAnalytics && window.priceAnalytics.overlayVisible) {
+                        const mapBounds = getMapBounds();
+                        if (mapBounds) {
+                            window.priceAnalytics.updateStatistics(data, mapBounds);
+                        }
+                    }
                     
                     // Auto-open popup for highlighted station after a short delay
                     if (window.highlightStationId) {
@@ -1653,6 +1672,16 @@ map.on('load', function () {
         map.on('mouseleave', 'stations-layer', function () {
             map.getCanvas().style.cursor = '';
         });
+    }
+    
+    // Initialize Price Analytics
+    try {
+        if (window.priceAnalytics) {
+            window.priceAnalytics.init(map);
+            console.log('📊 Price analytics initialized successfully');
+        }
+    } catch (error) {
+        console.warn('Failed to initialize price analytics:', error);
     }
 });
 
