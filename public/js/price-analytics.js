@@ -10,6 +10,7 @@ class PriceAnalytics {
         this.overlayVisible = false;
         this.currentZoomLevel = 6;
         this.updateInterval = null;
+        this.map = null;
         
         // Lucide icon mappings (using kebab-case names)
         this.icons = {
@@ -665,14 +666,56 @@ class PriceAnalytics {
     }
 
     /**
+     * Generate bounds from station data when bounds are not provided
+     */
+    generateBoundsFromStations(stations) {
+        if (!stations || !stations.features || stations.features.length === 0) {
+            // Default to UK bounds if no stations
+            return {
+                west: -8.0,
+                south: 49.5,
+                east: 2.0,
+                north: 59.0
+            };
+        }
+
+        let minLng = Infinity, minLat = Infinity;
+        let maxLng = -Infinity, maxLat = -Infinity;
+
+        stations.features.forEach(station => {
+            if (station.geometry && station.geometry.coordinates) {
+                const [lng, lat] = station.geometry.coordinates;
+                minLng = Math.min(minLng, lng);
+                maxLng = Math.max(maxLng, lng);
+                minLat = Math.min(minLat, lat);
+                maxLat = Math.max(maxLat, lat);
+            }
+        });
+
+        // Add small padding to bounds
+        const padding = 0.01;
+        return {
+            west: minLng - padding,
+            south: minLat - padding,
+            east: maxLng + padding,
+            north: maxLat + padding
+        };
+    }
+
+    /**
      * Update statistics when map data changes
      */
-    updateStatistics(stations, bounds) {
+    updateStatistics(stations, bounds = null) {
         if (!stations) return;
 
+        // Generate bounds if not provided
+        if (!bounds) {
+            bounds = this.generateBoundsFromStations(stations);
+        }
+
         const stats = this.calculateRegionalStats(stations, bounds);
-        if (stats && this.overlayVisible) {
-            this.createStatsOverlay(map, stats);
+        if (stats) {
+            this.createStatsOverlay(this.map, stats);
         }
     }
 
@@ -1093,6 +1136,9 @@ class PriceAnalytics {
      * Initialize price analytics
      */
     init(map) {
+        // Store map reference
+        this.map = map;
+        
         // Add mobile-specific viewport meta tag if not present
         if (this.isMobileDevice() && !document.querySelector('meta[name="viewport"]')) {
             const viewport = document.createElement('meta');
