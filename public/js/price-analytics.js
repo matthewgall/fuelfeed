@@ -654,9 +654,11 @@ class PriceAnalytics {
      * Create empty overlay when no data is available
      */
     createEmptyOverlay() {
+        console.log('📊 Creating empty overlay');
         const overlay = document.createElement('div');
         overlay.id = 'price-stats-overlay';
         overlay.className = 'price-stats-overlay';
+        overlay.style.display = 'block';
         overlay.innerHTML = `
             <div class="stats-header">
                 <h3>${this.getIcon('chart')} Price Statistics</h3>
@@ -667,6 +669,7 @@ class PriceAnalytics {
             </div>
         `;
         document.body.appendChild(overlay);
+        console.log('📊 Empty overlay created and added to body');
     }
 
     /**
