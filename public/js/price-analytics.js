@@ -142,23 +142,19 @@ class PriceAnalytics {
         };
 
         let totalStations = 0;
-        console.log('📊 Processing', stations.features.length, 'station features');
         
         stations.features.forEach(station => {
             if (!station.properties) {
-                console.log('📊 Skipping station - no properties:', station);
                 return;
             }
             
             // Use structured price data from enhanced API
             const fuelPrices = station.properties.fuel_prices;
             if (!fuelPrices || Object.keys(fuelPrices).length === 0) {
-                console.log('📊 Skipping station - no fuel_prices data:', station.properties);
                 return;
             }
             
             totalStations++;
-            console.log('📊 Processing station', totalStations, 'with fuel prices:', fuelPrices);
             
             // Process unleaded variants (E10, unleaded, petrol)
             const unleadedPrice = this.getBestPrice(fuelPrices, ['E10', 'unleaded', 'petrol', 'gasoline']);
@@ -194,8 +190,6 @@ class PriceAnalytics {
         });
 
         stats.all.stationCount = totalStations;
-        
-        console.log('📊 Final stats calculated - stationCount:', totalStations, 'all.prices.length:', stats.all.prices.length);
         
         return stats;
     }
@@ -255,21 +249,14 @@ class PriceAnalytics {
     /**
      * Create and display price statistics overlay
      */
-    createStatsOverlay(map, stats) {
-        console.log('📊 createStatsOverlay called with stats:', stats);
-        
+    createStatsOverlay(_, stats) {
         if (!stats) {
-            console.warn('📊 No stats provided to createStatsOverlay');
             return;
         }
         
         if (stats.all.stationCount === 0) {
-            console.warn('📊 No stations in stats, stationCount:', stats.all.stationCount);
-            console.warn('📊 Stats object:', stats);
             return;
         }
-
-        console.log('📊 Getting or creating overlay element');
         const overlayDiv = document.getElementById('price-stats-overlay') || this.createOverlayElement();
         
         // Get regional comparison data
@@ -303,8 +290,6 @@ class PriceAnalytics {
 
         overlayDiv.innerHTML = html;
         overlayDiv.style.display = 'block';
-        
-        console.log('📊 Stats overlay updated and set to display:block');
         
         // Ensure overlayVisible is true when displaying
         this.overlayVisible = true;
@@ -697,20 +682,16 @@ class PriceAnalytics {
      * Toggle the statistics overlay visibility
      */
     toggleOverlay() {
-        console.log('📊 toggleOverlay called, current state:', this.overlayVisible);
         this.overlayVisible = !this.overlayVisible;
         let overlay = document.getElementById('price-stats-overlay');
         
         if (this.overlayVisible) {
-            console.log('📊 Showing overlay, existing overlay:', !!overlay);
             // Show overlay - create it if it doesn't exist
             if (!overlay) {
                 // Try to get current station data to show stats
                 if (window.lastStationData) {
-                    console.log('📊 Using lastStationData with', window.lastStationData.features?.length || 0, 'stations');
                     this.updateStatistics(window.lastStationData);
                 } else {
-                    console.log('📊 No station data, creating empty overlay');
                     // Create empty overlay with message
                     this.createEmptyOverlay();
                 }
@@ -736,7 +717,6 @@ class PriceAnalytics {
      * Create empty overlay when no data is available
      */
     createEmptyOverlay() {
-        console.log('📊 Creating empty overlay');
         const overlay = document.createElement('div');
         overlay.id = 'price-stats-overlay';
         overlay.className = 'price-stats-overlay';
@@ -751,7 +731,6 @@ class PriceAnalytics {
             </div>
         `;
         document.body.appendChild(overlay);
-        console.log('📊 Empty overlay created and added to body');
         
         // Ensure overlayVisible is true when creating overlay
         this.overlayVisible = true;
@@ -809,17 +788,13 @@ class PriceAnalytics {
         // Generate bounds if not provided
         if (!bounds) {
             bounds = this.generateBoundsFromStations(stations);
-            console.log('📊 Generated bounds from stations:', bounds);
         }
 
         const stats = this.calculateRegionalStats(stations, bounds);
-        console.log('📊 Calculated stats:', stats);
         
         if (stats) {
-            console.log('📊 Creating stats overlay with', stats.all.stationCount, 'stations');
             this.createStatsOverlay(this.map, stats);
         } else {
-            console.warn('📊 No stats calculated - creating empty overlay');
             this.createEmptyOverlay();
         }
     }
@@ -885,9 +860,7 @@ class PriceAnalytics {
         button.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            console.log('📊 Statistics button clicked, lastStationData available:', !!window.lastStationData);
-            const isVisible = this.toggleOverlay();
-            console.log('📊 Toggle result - isVisible:', isVisible, 'overlayVisible:', this.overlayVisible);
+            this.toggleOverlay();
             
             // The updateStatsButtonState is called in toggleOverlay, but let's also call it here for safety
             this.updateStatsButtonState();
@@ -1018,7 +991,6 @@ class PriceAnalytics {
         }
         
         // Best fuel type analysis
-        let bestFuel = 'unleaded';
         if (stats.diesel.count > 0 && stats.unleaded.count > 0) {
             const dieselRatio = stats.diesel.avg / stats.unleaded.avg;
             if (dieselRatio < 1.03) {
@@ -1076,14 +1048,10 @@ class PriceAnalytics {
         }
         
         // Create grid of price zones
-        const bounds = map.getBounds();
         const gridSize = 0.02; // Adjust based on zoom level
-        const priceGrid = this.createPriceGrid(stations.features, bounds, gridSize);
-        
-        console.log('🌡️ Heatmap grid created with', priceGrid.features.length, 'zones');
+        const priceGrid = this.createPriceGrid(stations.features, map.getBounds(), gridSize);
         
         if (priceGrid.features.length === 0) {
-            console.warn('🌡️ No heatmap zones created - insufficient data');
             this.showHeatmapMessage('Not enough fuel stations in this area for heatmap visualization.');
             return;
         }
@@ -1127,14 +1095,12 @@ class PriceAnalytics {
                 'line-opacity': 0.5
             }
         });
-        
-        console.log('🌡️ Heatmap layers added successfully - should be visible now');
     }
 
     /**
      * Create price grid for heatmap
      */
-    createPriceGrid(stations, bounds, gridSize) {
+    createPriceGrid(stations, _, gridSize) {
         const grid = new Map();
         
         stations.forEach(station => {
@@ -1170,7 +1136,7 @@ class PriceAnalytics {
         
         // Convert grid to GeoJSON
         const features = [];
-        grid.forEach((data, key) => {
+        grid.forEach((data) => {
             if (data.prices.length < 2) return; // Need at least 2 stations for meaningful average
             
             const avgPrice = data.prices.reduce((sum, price) => sum + price, 0) / data.prices.length;
@@ -1214,10 +1180,8 @@ class PriceAnalytics {
                     map.removeLayer('price-heatmap-layer');
                 }
                 map.removeSource('price-heatmap');
-                console.log('🌡️ Price heatmap hidden');
                 return false;
             } catch (e) {
-                console.warn('Error removing heatmap:', e);
                 return false;
             }
         } else {
@@ -1225,16 +1189,13 @@ class PriceAnalytics {
             if (window.lastStationData && window.lastStationData.features && window.lastStationData.features.length > 0) {
                 try {
                     this.createPriceHeatmap(map, window.lastStationData);
-                    console.log('🌡️ Price heatmap shown');
                     return true;
                 } catch (e) {
-                    console.warn('Error creating heatmap:', e);
                     return false;
                 }
             } else {
                 // Show message if no data available
                 this.showHeatmapMessage('Move the map to load fuel stations for heatmap visualization.');
-                console.log('🌡️ No station data available for heatmap');
                 return false;
             }
         }
@@ -1288,8 +1249,6 @@ class PriceAnalytics {
         if (button) {
             const isActive = this.overlayVisible;
             
-            console.log('📊 Updating stats button - overlayVisible:', isActive);
-            
             // Use both CSS classes and inline styles to ensure visibility
             if (isActive) {
                 button.classList.remove('inactive');
@@ -1297,19 +1256,13 @@ class PriceAnalytics {
                 // Force inline styles to override any conflicts
                 button.style.background = 'rgba(52, 152, 219, 0.9)';
                 button.style.color = 'white';
-                console.log('📊 Added active class and styles to stats button');
             } else {
                 button.classList.remove('active');
                 button.classList.add('inactive');
                 // Force inline styles to override any conflicts
                 button.style.background = 'rgba(255, 255, 255, 0.9)';
                 button.style.color = 'black';
-                console.log('📊 Added inactive class and styles to stats button');
             }
-            
-            console.log('📊 Stats button classes:', button.className);
-        } else {
-            console.warn('📊 Stats button not found in DOM');
         }
     }
 
@@ -1385,7 +1338,7 @@ class PriceAnalytics {
             });
         }
         
-        console.log('📊 Price Analytics initialized' + (this.isMobileDevice() ? ' (Mobile mode)' : '') + ' - Using Noto Color Emoji');
+        // Price Analytics initialized
         
         // Add icon preference toggle (can be accessed via console)
         window.setIconPreference = (preference) => {
@@ -1446,7 +1399,6 @@ class PriceAnalytics {
         button.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            console.log('🌡️ Heatmap button clicked, lastStationData available:', !!window.lastStationData);
             const isVisible = this.toggleHeatmap(map);
             button.style.background = isVisible ? 'rgba(241, 196, 15, 0.9)' : 'rgba(255, 255, 255, 0.9)';
             button.style.color = isVisible ? 'white' : 'black';
