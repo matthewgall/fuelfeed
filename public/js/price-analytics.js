@@ -142,33 +142,32 @@ class PriceAnalytics {
                 return;
             }
             
-            // Log the actual station properties to understand the data structure
-            console.log('📊 Station properties available:', Object.keys(station.properties));
-            console.log('📊 Full station properties:', station.properties);
-            
-            // For now, skip stations until we implement proper API integration
-            console.log('📊 Skipping station - need to implement API price fetching');
-            return;
+            // Use structured price data from enhanced API
+            const fuelPrices = station.properties.fuel_prices;
+            if (!fuelPrices || Object.keys(fuelPrices).length === 0) {
+                console.log('📊 Skipping station - no fuel_prices data:', station.properties);
+                return;
+            }
             
             totalStations++;
-            console.log('📊 Processing station', totalStations, 'with extracted prices:', prices);
+            console.log('📊 Processing station', totalStations, 'with fuel prices:', fuelPrices);
             
             // Process unleaded variants (E10, unleaded, petrol)
-            const unleadedPrice = this.getBestPrice(prices, ['E10', 'unleaded', 'petrol', 'gasoline']);
+            const unleadedPrice = this.getBestPrice(fuelPrices, ['E10', 'unleaded', 'petrol', 'gasoline']);
             if (unleadedPrice > 0) {
                 stats.unleaded.prices.push(unleadedPrice);
                 stats.all.prices.push(unleadedPrice);
             }
             
             // Process diesel variants (B7, diesel)
-            const dieselPrice = this.getBestPrice(prices, ['B7', 'diesel', 'gasoil']);
+            const dieselPrice = this.getBestPrice(fuelPrices, ['B7', 'diesel', 'gasoil']);
             if (dieselPrice > 0) {
                 stats.diesel.prices.push(dieselPrice);
                 stats.all.prices.push(dieselPrice);
             }
             
             // Process super unleaded variants (E5, super unleaded)
-            const superPrice = this.getBestPrice(prices, ['E5', 'super unleaded', 'premium unleaded', 'v-power unleaded']);
+            const superPrice = this.getBestPrice(fuelPrices, ['E5', 'super unleaded', 'premium unleaded', 'v-power unleaded']);
             if (superPrice > 0) {
                 stats.superUnleaded.prices.push(superPrice);
                 stats.all.prices.push(superPrice);
@@ -1086,16 +1085,16 @@ class PriceAnalytics {
         const grid = new Map();
         
         stations.forEach(station => {
-            if (!station.geometry || !station.properties || !station.properties.prices) return;
+            if (!station.geometry || !station.properties || !station.properties.fuel_prices) return;
             
             const [lng, lat] = station.geometry.coordinates;
             const gridX = Math.floor(lng / gridSize);
             const gridY = Math.floor(lat / gridSize);
             const gridKey = `${gridX}_${gridY}`;
             
-            // Get lowest price for this station
-            const prices = Object.values(station.properties.prices);
-            const validPrices = prices.filter(p => typeof p === 'number' && p > 0);
+            // Get lowest price for this station using structured fuel_prices
+            const fuelPrices = station.properties.fuel_prices;
+            const validPrices = Object.values(fuelPrices).filter(p => typeof p === 'number' && p > 0);
             
             if (validPrices.length === 0) return;
             

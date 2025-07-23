@@ -350,8 +350,11 @@ router.get('/api/data.mapbox', async (request, env, _context) => {
                 "brand": standardizedBrand,
                 "postcode": location,
                 "lowest_price": station.lowestPrice,
+                "average_price": station.averagePrice,
                 "is_best_price": isBestPrice,
-                "has_prices": station.prices.length > 0
+                "has_prices": station.prices.length > 0,
+                "fuel_prices": station.fuelPrices, // Add structured price data for analytics
+                "grouped_fuels": station.groupedFuels // Add categorized fuel data
             }
         });
     }
