@@ -55,6 +55,14 @@ class PriceAnalytics {
     }
 
     /**
+     * Format price to 2 decimal places
+     */
+    formatPrice(price) {
+        if (typeof price !== 'number' || isNaN(price)) return '0.00';
+        return price.toFixed(2);
+    }
+
+    /**
      * Get icon with comprehensive fallback system
      */
     getIcon(key, size = 16, forceEmoji = false) {
@@ -178,9 +186,9 @@ class PriceAnalytics {
         Object.keys(stats).forEach(fuelType => {
             const fuelStats = stats[fuelType];
             if (fuelStats.prices.length > 0) {
-                fuelStats.avg = this.calculateAverage(fuelStats.prices);
-                fuelStats.min = Math.min(...fuelStats.prices);
-                fuelStats.max = Math.max(...fuelStats.prices);
+                fuelStats.avg = parseFloat(this.calculateAverage(fuelStats.prices).toFixed(2));
+                fuelStats.min = parseFloat(Math.min(...fuelStats.prices).toFixed(2));
+                fuelStats.max = parseFloat(Math.max(...fuelStats.prices).toFixed(2));
                 fuelStats.count = fuelStats.prices.length;
             }
         });
@@ -282,11 +290,11 @@ class PriceAnalytics {
             <div class="stats-summary">
                 <div class="summary-item">
                     <span class="label">Overall Average:</span>
-                    <span class="value">£${stats.all.avg}</span>
+                    <span class="value">£${this.formatPrice(stats.all.avg)}</span>
                 </div>
                 <div class="summary-item">
                     <span class="label">Price Range:</span>
-                    <span class="value">£${stats.all.min} - £${stats.all.max}</span>
+                    <span class="value">£${this.formatPrice(stats.all.min)} - £${this.formatPrice(stats.all.max)}</span>
                 </div>
                 ${regionComparison ? this.createRegionalComparisonHTML(regionComparison) : ''}
             </div>
@@ -318,11 +326,11 @@ class PriceAnalytics {
         return `
             <div class="fuel-stat ${type}">
                 <div class="fuel-title">${title}</div>
-                <div class="fuel-avg">£${fuelStats.avg}</div>
+                <div class="fuel-avg">£${this.formatPrice(fuelStats.avg)}</div>
                 <div class="fuel-range ${spreadClass}">
-                    <span class="min">£${fuelStats.min}</span>
+                    <span class="min">£${this.formatPrice(fuelStats.min)}</span>
                     <span class="separator">-</span>
-                    <span class="max">£${fuelStats.max}</span>
+                    <span class="max">£${this.formatPrice(fuelStats.max)}</span>
                 </div>
                 <div class="fuel-count">${fuelStats.count} stations</div>
             </div>
@@ -893,7 +901,7 @@ class PriceAnalytics {
             <div class="summary-item regional-comparison">
                 <span class="label">vs. UK Average:</span>
                 <span class="value" style="color: ${trendColor}">
-                    ${trendIcon} ${comparison.difference > 0 ? '+' : ''}£${Math.abs(comparison.difference).toFixed(3)}
+                    ${trendIcon} ${comparison.difference > 0 ? '+' : ''}£${this.formatPrice(Math.abs(comparison.difference))}
                 </span>
             </div>
         `;
