@@ -235,8 +235,14 @@ class PriceAnalytics {
      * Create and display price statistics overlay
      */
     createStatsOverlay(map, stats) {
-        if (!stats || stats.all.stationCount === 0) return;
+        console.log('📊 createStatsOverlay called with stats:', stats);
+        
+        if (!stats || stats.all.stationCount === 0) {
+            console.warn('📊 No valid stats provided to createStatsOverlay');
+            return;
+        }
 
+        console.log('📊 Getting or creating overlay element');
         const overlayDiv = document.getElementById('price-stats-overlay') || this.createOverlayElement();
         
         // Get regional comparison data
@@ -270,6 +276,8 @@ class PriceAnalytics {
 
         overlayDiv.innerHTML = html;
         overlayDiv.style.display = 'block';
+        
+        console.log('📊 Stats overlay updated and set to display:block');
     }
 
     /**
@@ -740,16 +748,26 @@ class PriceAnalytics {
      * Update statistics when map data changes
      */
     updateStatistics(stations, bounds = null) {
-        if (!stations) return;
+        if (!stations) {
+            console.warn('📊 No stations data provided to updateStatistics');
+            return;
+        }
 
         // Generate bounds if not provided
         if (!bounds) {
             bounds = this.generateBoundsFromStations(stations);
+            console.log('📊 Generated bounds from stations:', bounds);
         }
 
         const stats = this.calculateRegionalStats(stations, bounds);
+        console.log('📊 Calculated stats:', stats);
+        
         if (stats) {
+            console.log('📊 Creating stats overlay with', stats.all.stationCount, 'stations');
             this.createStatsOverlay(this.map, stats);
+        } else {
+            console.warn('📊 No stats calculated - creating empty overlay');
+            this.createEmptyOverlay();
         }
     }
 
@@ -976,7 +994,12 @@ class PriceAnalytics {
         
         // Remove existing heatmap
         if (map.getSource('price-heatmap')) {
-            map.removeLayer('price-heatmap-layer');
+            if (map.getLayer('price-heatmap-border')) {
+                map.removeLayer('price-heatmap-border');
+            }
+            if (map.getLayer('price-heatmap-layer')) {
+                map.removeLayer('price-heatmap-layer');
+            }
             map.removeSource('price-heatmap');
         }
         
@@ -985,7 +1008,13 @@ class PriceAnalytics {
         const gridSize = 0.02; // Adjust based on zoom level
         const priceGrid = this.createPriceGrid(stations.features, bounds, gridSize);
         
-        if (priceGrid.features.length === 0) return;
+        console.log('🌡️ Heatmap grid created with', priceGrid.features.length, 'zones');
+        
+        if (priceGrid.features.length === 0) {
+            console.warn('🌡️ No heatmap zones created - insufficient data');
+            this.showHeatmapMessage('Not enough fuel stations in this area for heatmap visualization.');
+            return;
+        }
         
         // Add heatmap source
         map.addSource('price-heatmap', {
@@ -993,7 +1022,7 @@ class PriceAnalytics {
             data: priceGrid
         });
         
-        // Add heatmap layer
+        // Add heatmap layer with better visibility
         map.addLayer({
             id: 'price-heatmap-layer',
             type: 'fill',
@@ -1004,14 +1033,30 @@ class PriceAnalytics {
                     'interpolate',
                     ['linear'],
                     ['get', 'avgPrice'],
-                    1.35, '#27ae60',
-                    1.40, '#f1c40f',
-                    1.45, '#e67e22',
-                    1.50, '#e74c3c'
+                    1.30, '#27ae60',  // Green for cheap
+                    1.40, '#f1c40f',  // Yellow for average
+                    1.50, '#e67e22',  // Orange for expensive
+                    1.60, '#e74c3c'   // Red for very expensive
                 ],
-                'fill-opacity': 0.3
+                'fill-opacity': 0.6,
+                'fill-outline-color': 'rgba(255,255,255,0.1)'
             }
-        }, 'stations-layer'); // Add below stations layer
+        }); // Add as top layer for visibility
+        
+        // Add border layer for better definition
+        map.addLayer({
+            id: 'price-heatmap-border',
+            type: 'line',
+            source: 'price-heatmap',
+            layout: {},
+            paint: {
+                'line-color': 'rgba(255,255,255,0.3)',
+                'line-width': 1,
+                'line-opacity': 0.5
+            }
+        });
+        
+        console.log('🌡️ Heatmap layers added successfully - should be visible now');
     }
 
     /**
@@ -1090,7 +1135,12 @@ class PriceAnalytics {
         if (map.getSource('price-heatmap')) {
             // Remove heatmap
             try {
-                map.removeLayer('price-heatmap-layer');
+                if (map.getLayer('price-heatmap-border')) {
+                    map.removeLayer('price-heatmap-border');
+                }
+                if (map.getLayer('price-heatmap-layer')) {
+                    map.removeLayer('price-heatmap-layer');
+                }
                 map.removeSource('price-heatmap');
                 console.log('🌡️ Price heatmap hidden');
                 return false;
