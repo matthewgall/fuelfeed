@@ -837,6 +837,9 @@ class PriceAnalytics {
             display: flex;
             align-items: center;
             justify-content: center;
+            pointer-events: auto;
+            -webkit-touch-callout: none;
+            -webkit-user-drag: none;
         `;
 
         button.addEventListener('mouseenter', () => {
@@ -857,32 +860,46 @@ class PriceAnalytics {
             button.style.transform = 'scale(1)';
         });
 
-        button.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            this.toggleOverlay();
-            
-            // The updateStatsButtonState is called in toggleOverlay, but let's also call it here for safety
-            this.updateStatsButtonState();
-        });
-
         // Add touch events for better mobile interaction
+        let touchHandled = false;
+        
         button.addEventListener('touchstart', (e) => {
             e.preventDefault();
+            touchHandled = true;
             button.style.background = 'rgba(255, 255, 255, 1)';
             button.style.transform = 'scale(1.05)';
         });
 
         button.addEventListener('touchend', (e) => {
             e.preventDefault();
-            if (this.overlayVisible) {
-                button.style.background = 'rgba(52, 152, 219, 0.9)';
-                button.style.color = 'white';
-            } else {
-                button.style.background = 'rgba(255, 255, 255, 0.9)';
-                button.style.color = 'black';
+            e.stopPropagation();
+            
+            if (touchHandled) {
+                // Trigger the actual toggle functionality
+                this.toggleOverlay();
+                this.updateStatsButtonState();
+                
+                // Reset touch flag after a delay to prevent double-firing
+                setTimeout(() => { touchHandled = false; }, 300);
             }
+            
             button.style.transform = 'scale(1)';
+        });
+
+        // Prevent click events if touch was handled (prevents double-firing on mobile)
+        button.addEventListener('click', (e) => {
+            if (touchHandled) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            
+            e.preventDefault();
+            e.stopPropagation();
+            this.toggleOverlay();
+            
+            // The updateStatsButtonState is called in toggleOverlay, but let's also call it here for safety
+            this.updateStatsButtonState();
         });
 
         document.body.appendChild(button);
@@ -1383,6 +1400,13 @@ class PriceAnalytics {
             display: flex;
             align-items: center;
             justify-content: center;
+            pointer-events: auto;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-user-drag: none;
         `;
 
         button.addEventListener('mouseenter', () => {
@@ -1396,26 +1420,46 @@ class PriceAnalytics {
             button.style.transform = 'scale(1)';
         });
 
-        button.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const isVisible = this.toggleHeatmap(map);
-            button.style.background = isVisible ? 'rgba(241, 196, 15, 0.9)' : 'rgba(255, 255, 255, 0.9)';
-            button.style.color = isVisible ? 'white' : 'black';
-        });
-
         // Add touch events for better mobile interaction
+        let touchHandled = false;
+        
         button.addEventListener('touchstart', (e) => {
             e.preventDefault();
+            touchHandled = true;
             button.style.background = 'rgba(255, 255, 255, 1)';
             button.style.transform = 'scale(1.05)';
         });
 
         button.addEventListener('touchend', (e) => {
             e.preventDefault();
-            const isActive = map.getSource('price-heatmap');
-            button.style.background = isActive ? 'rgba(241, 196, 15, 0.9)' : 'rgba(255, 255, 255, 0.9)';
+            e.stopPropagation();
+            
+            if (touchHandled) {
+                // Trigger the actual toggle functionality
+                const isVisible = this.toggleHeatmap(map);
+                button.style.background = isVisible ? 'rgba(241, 196, 15, 0.9)' : 'rgba(255, 255, 255, 0.9)';
+                button.style.color = isVisible ? 'white' : 'black';
+                
+                // Reset touch flag after a delay to prevent double-firing
+                setTimeout(() => { touchHandled = false; }, 300);
+            }
+            
             button.style.transform = 'scale(1)';
+        });
+
+        // Prevent click events if touch was handled (prevents double-firing on mobile)
+        button.addEventListener('click', (e) => {
+            if (touchHandled) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            
+            e.preventDefault();
+            e.stopPropagation();
+            const isVisible = this.toggleHeatmap(map);
+            button.style.background = isVisible ? 'rgba(241, 196, 15, 0.9)' : 'rgba(255, 255, 255, 0.9)';
+            button.style.color = isVisible ? 'white' : 'black';
         });
 
         document.body.appendChild(button);
