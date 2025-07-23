@@ -656,6 +656,17 @@ class PriceAnalytics {
                 fill: none;
             }
             
+            /* Button active state styles */
+            #stats-toggle-button.active {
+                background: rgba(52, 152, 219, 0.9) !important;
+                color: white !important;
+            }
+            
+            #stats-toggle-button.inactive {
+                background: rgba(255, 255, 255, 0.9) !important;
+                color: black !important;
+            }
+            
             /* Ensure emoji display properly with Noto Color Emoji */
             .noto-emoji, .price-stats-overlay .noto-emoji {
                 font-family: "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", "Twemoji Mozilla", emoji, sans-serif !important;
@@ -1263,15 +1274,21 @@ class PriceAnalytics {
         const button = document.getElementById('stats-toggle-button');
         if (button) {
             const isActive = this.overlayVisible;
-            const newBg = isActive ? 'rgba(52, 152, 219, 0.9)' : 'rgba(255, 255, 255, 0.9)';
-            const newColor = isActive ? 'white' : 'black';
             
-            console.log('📊 Updating stats button - overlayVisible:', isActive, 'new bg:', newBg);
+            console.log('📊 Updating stats button - overlayVisible:', isActive);
             
-            button.style.background = newBg;
-            button.style.color = newColor;
+            // Use CSS classes to override any hover/focus styles
+            if (isActive) {
+                button.classList.remove('inactive');
+                button.classList.add('active');
+                console.log('📊 Added active class to stats button');
+            } else {
+                button.classList.remove('active');
+                button.classList.add('inactive');
+                console.log('📊 Added inactive class to stats button');
+            }
             
-            console.log('📊 Stats button updated - background:', button.style.background, 'color:', button.style.color);
+            console.log('📊 Stats button classes:', button.className);
         } else {
             console.warn('📊 Stats button not found in DOM');
         }
