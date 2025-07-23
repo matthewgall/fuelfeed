@@ -137,14 +137,21 @@ class PriceAnalytics {
         console.log('📊 Processing', stations.features.length, 'station features');
         
         stations.features.forEach(station => {
-            if (!station.properties || !station.properties.prices) {
-                console.log('📊 Skipping station - no properties or prices:', station);
+            if (!station.properties) {
+                console.log('📊 Skipping station - no properties:', station);
                 return;
             }
             
+            // Log the actual station properties to understand the data structure
+            console.log('📊 Station properties available:', Object.keys(station.properties));
+            console.log('📊 Full station properties:', station.properties);
+            
+            // For now, skip stations until we implement proper API integration
+            console.log('📊 Skipping station - need to implement API price fetching');
+            return;
+            
             totalStations++;
-            console.log('📊 Processing station', totalStations, 'with prices:', station.properties.prices);
-            const prices = station.properties.prices;
+            console.log('📊 Processing station', totalStations, 'with extracted prices:', prices);
             
             // Process unleaded variants (E10, unleaded, petrol)
             const unleadedPrice = this.getBestPrice(prices, ['E10', 'unleaded', 'petrol', 'gasoline']);
