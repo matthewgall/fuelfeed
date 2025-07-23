@@ -305,6 +305,9 @@ class PriceAnalytics {
         overlayDiv.style.display = 'block';
         
         console.log('📊 Stats overlay updated and set to display:block');
+        
+        // Update button visual state
+        this.updateStatsButtonState();
     }
 
     /**
@@ -709,6 +712,9 @@ class PriceAnalytics {
             }
         }
         
+        // Update button visual state
+        this.updateStatsButtonState();
+        
         return this.overlayVisible;
     }
 
@@ -732,6 +738,9 @@ class PriceAnalytics {
         `;
         document.body.appendChild(overlay);
         console.log('📊 Empty overlay created and added to body');
+        
+        // Update button visual state
+        this.updateStatsButtonState();
     }
 
     /**
@@ -872,6 +881,10 @@ class PriceAnalytics {
         });
 
         document.body.appendChild(button);
+        
+        // Set initial visual state
+        this.updateStatsButtonState();
+        
         return button;
     }
 
@@ -1233,6 +1246,19 @@ class PriceAnalytics {
                 messageDiv.remove();
             }
         }, 3000);
+    }
+
+    /**
+     * Update statistics button visual state
+     */
+    updateStatsButtonState() {
+        const button = document.getElementById('stats-toggle-button');
+        if (button) {
+            const isActive = this.overlayVisible;
+            button.style.background = isActive ? 'rgba(52, 152, 219, 0.9)' : 'rgba(255, 255, 255, 0.9)';
+            button.style.color = isActive ? 'white' : 'black';
+            console.log('📊 Updated stats button state - active:', isActive);
+        }
     }
 
     /**
