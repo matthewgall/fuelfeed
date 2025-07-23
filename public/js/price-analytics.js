@@ -306,6 +306,9 @@ class PriceAnalytics {
         
         console.log('📊 Stats overlay updated and set to display:block');
         
+        // Ensure overlayVisible is true when displaying
+        this.overlayVisible = true;
+        
         // Update button visual state
         this.updateStatsButtonState();
     }
@@ -739,6 +742,9 @@ class PriceAnalytics {
         document.body.appendChild(overlay);
         console.log('📊 Empty overlay created and added to body');
         
+        // Ensure overlayVisible is true when creating overlay
+        this.overlayVisible = true;
+        
         // Update button visual state
         this.updateStatsButtonState();
     }
@@ -862,8 +868,10 @@ class PriceAnalytics {
             e.stopPropagation();
             console.log('📊 Statistics button clicked, lastStationData available:', !!window.lastStationData);
             const isVisible = this.toggleOverlay();
-            button.style.background = isVisible ? 'rgba(52, 152, 219, 0.9)' : 'rgba(255, 255, 255, 0.9)';
-            button.style.color = isVisible ? 'white' : 'black';
+            console.log('📊 Toggle result - isVisible:', isVisible, 'overlayVisible:', this.overlayVisible);
+            
+            // The updateStatsButtonState is called in toggleOverlay, but let's also call it here for safety
+            this.updateStatsButtonState();
         });
 
         // Add touch events for better mobile interaction
@@ -1255,9 +1263,17 @@ class PriceAnalytics {
         const button = document.getElementById('stats-toggle-button');
         if (button) {
             const isActive = this.overlayVisible;
-            button.style.background = isActive ? 'rgba(52, 152, 219, 0.9)' : 'rgba(255, 255, 255, 0.9)';
-            button.style.color = isActive ? 'white' : 'black';
-            console.log('📊 Updated stats button state - active:', isActive);
+            const newBg = isActive ? 'rgba(52, 152, 219, 0.9)' : 'rgba(255, 255, 255, 0.9)';
+            const newColor = isActive ? 'white' : 'black';
+            
+            console.log('📊 Updating stats button - overlayVisible:', isActive, 'new bg:', newBg);
+            
+            button.style.background = newBg;
+            button.style.color = newColor;
+            
+            console.log('📊 Stats button updated - background:', button.style.background, 'color:', button.style.color);
+        } else {
+            console.warn('📊 Stats button not found in DOM');
         }
     }
 
