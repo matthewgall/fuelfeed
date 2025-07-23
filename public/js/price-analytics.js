@@ -134,11 +134,16 @@ class PriceAnalytics {
         };
 
         let totalStations = 0;
+        console.log('📊 Processing', stations.features.length, 'station features');
         
         stations.features.forEach(station => {
-            if (!station.properties || !station.properties.prices) return;
+            if (!station.properties || !station.properties.prices) {
+                console.log('📊 Skipping station - no properties or prices:', station);
+                return;
+            }
             
             totalStations++;
+            console.log('📊 Processing station', totalStations, 'with prices:', station.properties.prices);
             const prices = station.properties.prices;
             
             // Process unleaded variants (E10, unleaded, petrol)
@@ -175,6 +180,8 @@ class PriceAnalytics {
         });
 
         stats.all.stationCount = totalStations;
+        
+        console.log('📊 Final stats calculated - stationCount:', totalStations, 'all.prices.length:', stats.all.prices.length);
         
         return stats;
     }
@@ -237,8 +244,14 @@ class PriceAnalytics {
     createStatsOverlay(map, stats) {
         console.log('📊 createStatsOverlay called with stats:', stats);
         
-        if (!stats || stats.all.stationCount === 0) {
-            console.warn('📊 No valid stats provided to createStatsOverlay');
+        if (!stats) {
+            console.warn('📊 No stats provided to createStatsOverlay');
+            return;
+        }
+        
+        if (stats.all.stationCount === 0) {
+            console.warn('📊 No stations in stats, stationCount:', stats.all.stationCount);
+            console.warn('📊 Stats object:', stats);
             return;
         }
 
