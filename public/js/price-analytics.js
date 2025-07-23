@@ -865,12 +865,20 @@ class PriceAnalytics {
         `;
 
         button.addEventListener('mouseenter', () => {
-            button.style.background = 'rgba(255, 255, 255, 1)';
+            if (this.overlayVisible) {
+                button.style.background = 'rgba(52, 152, 219, 1)';
+            } else {
+                button.style.background = 'rgba(255, 255, 255, 1)';
+            }
             button.style.transform = 'scale(1.05)';
         });
 
         button.addEventListener('mouseleave', () => {
-            button.style.background = 'rgba(255, 255, 255, 0.9)';
+            if (this.overlayVisible) {
+                button.style.background = 'rgba(52, 152, 219, 0.9)';
+            } else {
+                button.style.background = 'rgba(255, 255, 255, 0.9)';
+            }
             button.style.transform = 'scale(1)';
         });
 
@@ -894,8 +902,13 @@ class PriceAnalytics {
 
         button.addEventListener('touchend', (e) => {
             e.preventDefault();
-            const isActive = this.overlayVisible;
-            button.style.background = isActive ? 'rgba(52, 152, 219, 0.9)' : 'rgba(255, 255, 255, 0.9)';
+            if (this.overlayVisible) {
+                button.style.background = 'rgba(52, 152, 219, 0.9)';
+                button.style.color = 'white';
+            } else {
+                button.style.background = 'rgba(255, 255, 255, 0.9)';
+                button.style.color = 'black';
+            }
             button.style.transform = 'scale(1)';
         });
 
@@ -1277,15 +1290,21 @@ class PriceAnalytics {
             
             console.log('📊 Updating stats button - overlayVisible:', isActive);
             
-            // Use CSS classes to override any hover/focus styles
+            // Use both CSS classes and inline styles to ensure visibility
             if (isActive) {
                 button.classList.remove('inactive');
                 button.classList.add('active');
-                console.log('📊 Added active class to stats button');
+                // Force inline styles to override any conflicts
+                button.style.background = 'rgba(52, 152, 219, 0.9)';
+                button.style.color = 'white';
+                console.log('📊 Added active class and styles to stats button');
             } else {
                 button.classList.remove('active');
                 button.classList.add('inactive');
-                console.log('📊 Added inactive class to stats button');
+                // Force inline styles to override any conflicts
+                button.style.background = 'rgba(255, 255, 255, 0.9)';
+                button.style.color = 'black';
+                console.log('📊 Added inactive class and styles to stats button');
             }
             
             console.log('📊 Stats button classes:', button.className);
