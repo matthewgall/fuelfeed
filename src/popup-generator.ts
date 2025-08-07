@@ -78,7 +78,7 @@ export class PopupGenerator {
         for (let i = 0; i < Math.min(prices.length, 3); i++) {
             const price = prices[i];
             if (price && price.trim()) {
-                const match = price.match(/([⛽💎])\s+([^£]+)£([\d.]+)/);
+                const match = price.match(/((?:[⛽💎🚛])+)\s+([^£]+)£([\d.]+)/);
                 if (match) {
                     const icon = match[1];
                     const fuel = match[2].trim().replace(/\([^)]*\)/g, '').trim();
@@ -180,7 +180,7 @@ export class PopupGenerator {
 
         for (const price of prices) {
             if (price && price.trim()) {
-                const match = price.match(/([⛽💎])\s+([^£]+)£([\d.]+)/);
+                const match = price.match(/((?:[⛽💎🚛])+)\s+([^£]+)£([\d.]+)/);
                 if (match) {
                     const icon = match[1];
                     const fuel = match[2].trim().replace(/\([^)]*\)/g, '').trim();
