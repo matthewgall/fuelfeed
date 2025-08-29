@@ -1686,6 +1686,17 @@ map.on('load', function () {
     } catch (error) {
         console.warn('Failed to initialize price analytics:', error);
     }
+    
+    // Show onboarding for first-time users
+    try {
+        if (typeof OnboardingOverlay !== 'undefined' && window.onboarding) {
+            setTimeout(() => {
+                window.onboarding.show();
+            }, 1000); // Show after 1 second to let map load
+        }
+    } catch (error) {
+        console.warn('Failed to initialize onboarding:', error);
+    }
 });
 
 // Global functions for cache management (useful for debugging)
