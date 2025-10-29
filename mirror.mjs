@@ -6,7 +6,18 @@ import Feeds from './feeds.json' with { type: "json" };
 let feeds = Feeds;
 let axiosConfig = {
     headers: {
-        'User-Agent': 'fuelaround.me/builder'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:144.0) Gecko/20100101 Firefox/144.0',
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-GB,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Referer': 'https://www.gov.uk/guidance/access-fuel-price-data',
+        'DNT': '1',
+        'Connection': 'keep-alive',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'cross-site',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
     },
     timeout: 10000, // Increased timeout for reliability
     validateStatus: function (status) {
