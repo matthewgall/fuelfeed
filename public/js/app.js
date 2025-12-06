@@ -37,9 +37,9 @@ const protomapsStyle = {
         {"id": "landcover_wood", "type": "fill", "source": "protomaps", "source-layer": "landcover", "filter": ["==", "kind", "wood"], "paint": {"fill-color": "#b8d8b8"}},
         {"id": "landcover_scrub", "type": "fill", "source": "protomaps", "source-layer": "landcover", "filter": ["==", "kind", "scrub"], "paint": {"fill-color": "#c8d8c8"}},
 
-        // Water
-        {"id": "water", "type": "fill", "source": "protomaps", "source-layer": "water", "paint": {"fill-color": "#aad3df", "fill-opacity": 0.7}},
-        {"id": "water_outline", "type": "line", "source": "protomaps", "source-layer": "water", "paint": {"line-color": "#7eb3c1", "line-width": 0.5}},
+        // Water - subtle styling
+        {"id": "water", "type": "fill", "source": "protomaps", "source-layer": "water", "paint": {"fill-color": "#c8dde5", "fill-opacity": 0.4}},
+        {"id": "water_outline", "type": "line", "source": "protomaps", "source-layer": "water", "paint": {"line-color": "#b0c4d0", "line-width": 0.3, "line-opacity": 0.5}},
 
         // Buildings - highly visible
         {
