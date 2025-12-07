@@ -1061,6 +1061,9 @@ map.on('load', function () {
         'id': 'stations-layer',
         'source': 'stations',
         'type': 'circle',
+        'layout': {
+            'visibility': 'visible'
+        },
         'paint': isMobile ? {
             // Simplified mobile rendering
             'circle-radius': isLowEndMobile ? 8 : [
