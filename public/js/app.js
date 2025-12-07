@@ -10,20 +10,218 @@ if ("serviceWorker" in navigator) {
 // Using self-hosted Protomaps instead of MapTiler API
 // maptilersdk.config.apiKey = 'cwsqqYCkA54i9eIGaph9'; // No longer needed
 
-// Use official Protomaps basemap light theme
+// Protomaps style configuration - optimized for UK roads and buildings
 const protomapsStyle = {
-    version: 8,
-    glyphs: "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf",
-    sprite: "https://protomaps.github.io/basemaps-assets/sprites/v4/light",
-    sources: {
-        protomaps: {
-            type: "vector",
-            tiles: ["https://protomaps.matthewgall.workers.dev/planet-latest/{z}/{x}/{y}.mvt"],
-            maxzoom: 15,
-            attribution: '<a href="https://openstreetmap.org/copyright">© OpenStreetMap Contributors</a>'
+    "version": 8,
+    "sources": {
+        "protomaps": {
+            "type": "vector",
+            "tiles": ["https://protomaps.matthewgall.workers.dev/planet-latest/{z}/{x}/{y}.mvt"],
+            "maxzoom": 15
         }
     },
-    layers: basemaps.layers("protomaps", basemaps.namedFlavor("light"))
+    "glyphs": "https://cdn.protomaps.com/fonts/pbf/{fontstack}/{range}.pbf",
+    "layers": [
+        // Base layers
+        {"id": "background", "type": "background", "paint": {"background-color": "#f8f4f0"}},
+        {"id": "earth", "type": "fill", "source": "protomaps", "source-layer": "earth", "paint": {"fill-color": "#f8f4f0"}},
+
+        // Landuse
+        {"id": "landuse_park", "type": "fill", "source": "protomaps", "source-layer": "landuse", "filter": ["==", "kind", "park"], "paint": {"fill-color": "#c8e6c9"}},
+        {"id": "landuse_hospital", "type": "fill", "source": "protomaps", "source-layer": "landuse", "filter": ["==", "kind", "hospital"], "paint": {"fill-color": "#ffeaea"}},
+        {"id": "landuse_industrial", "type": "fill", "source": "protomaps", "source-layer": "landuse", "filter": ["==", "kind", "industrial"], "paint": {"fill-color": "#ebe7f2"}},
+        {"id": "landuse_school", "type": "fill", "source": "protomaps", "source-layer": "landuse", "filter": ["==", "kind", "school"], "paint": {"fill-color": "#fff5e6"}},
+        {"id": "landuse_commercial", "type": "fill", "source": "protomaps", "source-layer": "landuse", "filter": ["==", "kind", "commercial"], "paint": {"fill-color": "#f5e6f0"}},
+
+        // Landcover (forests, etc)
+        {"id": "landcover_wood", "type": "fill", "source": "protomaps", "source-layer": "landcover", "filter": ["==", "kind", "wood"], "paint": {"fill-color": "#b8d8b8"}},
+        {"id": "landcover_scrub", "type": "fill", "source": "protomaps", "source-layer": "landcover", "filter": ["==", "kind", "scrub"], "paint": {"fill-color": "#c8d8c8"}},
+
+        // Water - subtle styling
+        {"id": "water", "type": "fill", "source": "protomaps", "source-layer": "water", "paint": {"fill-color": "#c8dde5", "fill-opacity": 0.4}},
+        {"id": "water_outline", "type": "line", "source": "protomaps", "source-layer": "water", "paint": {"line-color": "#b0c4d0", "line-width": 0.3, "line-opacity": 0.5}},
+
+        // Buildings - highly visible
+        {
+            "id": "buildings",
+            "type": "fill",
+            "source": "protomaps",
+            "source-layer": "buildings",
+            "minzoom": 14,
+            "paint": {
+                "fill-color": "#d4d4d4",
+                "fill-opacity": 0.8,
+                "fill-outline-color": "#a0a0a0"
+            }
+        },
+        {
+            "id": "buildings_outline",
+            "type": "line",
+            "source": "protomaps",
+            "source-layer": "buildings",
+            "minzoom": 15,
+            "paint": {
+                "line-color": "#999",
+                "line-width": 0.5
+            }
+        },
+
+        // Roads - properly categorized and styled
+        // Minor roads (residential, service, etc)
+        {
+            "id": "roads_minor_casing",
+            "type": "line",
+            "source": "protomaps",
+            "source-layer": "roads",
+            "filter": ["in", "kind", "minor_road", "other"],
+            "minzoom": 12,
+            "paint": {
+                "line-color": "#c0c0c0",
+                "line-width": ["interpolate", ["linear"], ["zoom"], 12, 2, 16, 5]
+            }
+        },
+        {
+            "id": "roads_minor",
+            "type": "line",
+            "source": "protomaps",
+            "source-layer": "roads",
+            "filter": ["in", "kind", "minor_road", "other"],
+            "minzoom": 12,
+            "paint": {
+                "line-color": "#ffffff",
+                "line-width": ["interpolate", ["linear"], ["zoom"], 12, 1.5, 16, 4]
+            }
+        },
+
+        // Major roads (A roads, B roads)
+        {
+            "id": "roads_major_casing",
+            "type": "line",
+            "source": "protomaps",
+            "source-layer": "roads",
+            "filter": ["in", "kind", "major_road"],
+            "paint": {
+                "line-color": "#e0a060",
+                "line-width": ["interpolate", ["linear"], ["zoom"], 8, 3, 16, 10]
+            }
+        },
+        {
+            "id": "roads_major",
+            "type": "line",
+            "source": "protomaps",
+            "source-layer": "roads",
+            "filter": ["in", "kind", "major_road"],
+            "paint": {
+                "line-color": "#ffc870",
+                "line-width": ["interpolate", ["linear"], ["zoom"], 8, 2, 16, 8]
+            }
+        },
+
+        // Highways and motorways (M roads)
+        {
+            "id": "roads_highway_casing",
+            "type": "line",
+            "source": "protomaps",
+            "source-layer": "roads",
+            "filter": ["in", "kind", "highway", "motorway"],
+            "paint": {
+                "line-color": "#c05000",
+                "line-width": ["interpolate", ["linear"], ["zoom"], 6, 2.5, 16, 12]
+            }
+        },
+        {
+            "id": "roads_highway",
+            "type": "line",
+            "source": "protomaps",
+            "source-layer": "roads",
+            "filter": ["in", "kind", "highway", "motorway"],
+            "paint": {
+                "line-color": "#ff6b35",
+                "line-width": ["interpolate", ["linear"], ["zoom"], 6, 2, 16, 10]
+            }
+        },
+
+        // Boundaries
+        {"id": "boundaries", "type": "line", "source": "protomaps", "source-layer": "boundaries", "paint": {"line-color": "#adadad", "line-width": 1, "line-dasharray": [3, 2]}},
+
+        // Place labels
+        {
+            "id": "places_city",
+            "type": "symbol",
+            "source": "protomaps",
+            "source-layer": "places",
+            "filter": ["==", "kind", "city"],
+            "layout": {
+                "text-field": "{name}",
+                "text-font": ["Noto Sans Regular"],
+                "text-size": 16,
+                "text-anchor": "center"
+            },
+            "paint": {
+                "text-color": "#333",
+                "text-halo-color": "#fff",
+                "text-halo-width": 2
+            }
+        },
+        {
+            "id": "places_town",
+            "type": "symbol",
+            "source": "protomaps",
+            "source-layer": "places",
+            "filter": ["==", "kind", "town"],
+            "minzoom": 8,
+            "layout": {
+                "text-field": "{name}",
+                "text-font": ["Noto Sans Regular"],
+                "text-size": 13
+            },
+            "paint": {
+                "text-color": "#555",
+                "text-halo-color": "#fff",
+                "text-halo-width": 1.5
+            }
+        },
+        {
+            "id": "places_village",
+            "type": "symbol",
+            "source": "protomaps",
+            "source-layer": "places",
+            "filter": ["==", "kind", "village"],
+            "minzoom": 11,
+            "layout": {
+                "text-field": "{name}",
+                "text-font": ["Noto Sans Regular"],
+                "text-size": 11
+            },
+            "paint": {
+                "text-color": "#666",
+                "text-halo-color": "#fff",
+                "text-halo-width": 1.5
+            }
+        },
+
+        // Road labels
+        {
+            "id": "roads_labels",
+            "type": "symbol",
+            "source": "protomaps",
+            "source-layer": "roads",
+            "filter": ["has", "name"],
+            "minzoom": 12,
+            "layout": {
+                "text-field": "{name}",
+                "text-font": ["Noto Sans Regular"],
+                "text-size": ["interpolate", ["linear"], ["zoom"], 12, 9, 16, 12],
+                "symbol-placement": "line",
+                "text-rotation-alignment": "map"
+            },
+            "paint": {
+                "text-color": "#555",
+                "text-halo-color": "#fff",
+                "text-halo-width": 2
+            }
+        }
+    ]
 };
 
 // Version compatibility check
@@ -1061,9 +1259,6 @@ map.on('load', function () {
         'id': 'stations-layer',
         'source': 'stations',
         'type': 'circle',
-        'layout': {
-            'visibility': 'visible'
-        },
         'paint': isMobile ? {
             // Simplified mobile rendering
             'circle-radius': isLowEndMobile ? 8 : [
@@ -1132,11 +1327,7 @@ map.on('load', function () {
     };
     
     try {
-        // Add stations layer on top of all basemap layers
-        // The Protomaps basemap has many layers, so we need to ensure stations are visible
         map.addLayer(stationLayerConfig);
-        console.log('Added stations layer successfully');
-        console.log('Map layers:', map.getStyle().layers.map(l => l.id));
     } catch (error) {
         console.error('Error adding station layer:', error);
         console.error('Error details:', error.message);
