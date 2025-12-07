@@ -23,7 +23,7 @@ const protomapsStyle = {
             attribution: '<a href="https://openstreetmap.org/copyright">© OpenStreetMap Contributors</a>'
         }
     },
-    layers: protomaps_basemaps.layers("protomaps", protomaps_basemaps.namedFlavor("light"))
+    layers: basemaps.layers("protomaps", basemaps.namedFlavor("light"))
 };
 
 // Version compatibility check
