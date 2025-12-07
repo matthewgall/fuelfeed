@@ -1129,9 +1129,14 @@ map.on('load', function () {
     };
     
     try {
+        // Add stations layer on top of all basemap layers
+        // The Protomaps basemap has many layers, so we need to ensure stations are visible
         map.addLayer(stationLayerConfig);
+        console.log('Added stations layer successfully');
+        console.log('Map layers:', map.getStyle().layers.map(l => l.id));
     } catch (error) {
         console.error('Error adding station layer:', error);
+        console.error('Error details:', error.message);
         return;
     }
     
