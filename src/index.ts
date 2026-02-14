@@ -397,6 +397,7 @@ router.get('/api/data.mapbox', async (request, env, _context) => {
     return new Response(JSON.stringify(resp), { headers });
 })
 
+
 // Station detail endpoint for lazy loading
 router.get('/api/station/:stationId', async (request, env, _context) => {
     const { stationId } = request.params;

@@ -26,13 +26,13 @@ export class FuelCategorizer {
         {
             name: 'diesel',
             displayName: 'Diesel',
-            types: ['B7', 'B7P', 'B7S', 'B10', 'HVO', 'diesel', 'gasoil', 'regular diesel'],
+            types: ['B7', 'B7S', 'B10', 'HVO', 'diesel', 'gasoil', 'regular diesel'],
             icon: EmojiUtils.getEmoji('truck')
         },
         {
             name: 'super_diesel',
             displayName: 'Super Diesel',
-            types: ['SDV', 'super diesel', 'premium diesel', 'v-power diesel', 'ultimate diesel', 'city diesel'],
+            types: ['B7P', 'SDV', 'super diesel', 'premium diesel', 'v-power diesel', 'ultimate diesel', 'city diesel'],
             icon: EmojiUtils.getEmoji('dieselSuper')
         },
         {

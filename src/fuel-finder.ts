@@ -1,4 +1,12 @@
 const FUEL_FINDER_CSV_URL = 'https://www.fuel-finder.service.gov.uk/internal/v1.0.2/csv/get-latest-fuel-prices-csv';
+const FUEL_FINDER_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'text/csv,application/octet-stream;q=0.9,*/*;q=0.8',
+    'Accept-Language': 'en-GB,en;q=0.9',
+    'Referer': 'https://www.gov.uk/guidance/access-fuel-price-data',
+    'Cache-Control': 'no-cache',
+    'Pragma': 'no-cache'
+};
 
 type FuelFinderStation = {
     site_id: string;
@@ -238,12 +246,31 @@ function parseFuelFinderCsvText(csvText: string): FuelFinderParseResult {
     };
 }
 
-export async function updateFuelFinderSnapshot(env: Env) {
-    const response = await fetch(FUEL_FINDER_CSV_URL, {
-        headers: {
-            'Accept': 'text/csv,application/octet-stream;q=0.9,*/*;q=0.8'
+async function fetchFuelFinderCsv(url: string, maxRedirects: number = 3) {
+    let currentUrl = url;
+    let response: Response;
+
+    for (let attempt = 0; attempt <= maxRedirects; attempt += 1) {
+        response = await fetch(currentUrl, {
+            headers: FUEL_FINDER_HEADERS,
+            redirect: 'manual'
+        });
+
+        if (response.status >= 300 && response.status < 400) {
+            const location = response.headers.get('location');
+            if (!location) break;
+            currentUrl = new URL(location, currentUrl).toString();
+            continue;
         }
-    });
+
+        return { response, finalUrl: currentUrl };
+    }
+
+    return { response: response!, finalUrl: currentUrl };
+}
+
+export async function updateFuelFinderSnapshot(env: any) {
+    const { response, finalUrl } = await fetchFuelFinderCsv(FUEL_FINDER_CSV_URL);
 
     if (!response.ok) {
         throw new Error(`Fuel Finder CSV download failed with status ${response.status}`);
@@ -261,7 +288,9 @@ export async function updateFuelFinderSnapshot(env: Env) {
     await env.KV.put('fuel-finder:last', JSON.stringify({
         stats,
         lastUpdated: data.last_updated,
-        capturedAt: new Date().toISOString()
+        capturedAt: new Date().toISOString(),
+        sourceUrl: FUEL_FINDER_CSV_URL,
+        finalUrl
     }));
 
     return { stats, lastUpdated: data.last_updated };
