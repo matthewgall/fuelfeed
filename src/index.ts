@@ -9,6 +9,15 @@ import { PopupGenerator } from './popup-generator'
 import { GeographicFilter } from './geographic-filter'
 import { DynamicPricing } from './dynamic-pricing'
 import { CACHE_TTL, STATION_LIMITS, PRICE_THRESHOLDS } from './constants'
+import { updateFuelFinderSnapshot } from './fuel-finder'
+import {
+    buildEmailR2Key,
+    buildFuelFinderCsvR2Key,
+    downloadFuelFinderCsv,
+    extractEmailUrls,
+    storeEmailBody,
+    storeEmailUrls
+} from './email-ingest'
 
 const router = AutoRouter()
 const responseData = {
@@ -55,6 +64,13 @@ async function doSchedule(_event: any, env: any) {
     // Smart cache invalidation before update
     const invalidationResult = await CacheInvalidator.smartInvalidation(env, 'scheduled-update');
     console.log(`Cache invalidation: ${invalidationResult.reason} (${invalidationResult.deleted} entries)`);
+
+    try {
+        const fuelFinderResult = await updateFuelFinderSnapshot(env)
+        console.log('Fuel Finder snapshot updated', fuelFinderResult)
+    } catch (error) {
+        console.log('Fuel Finder snapshot update failed:', error instanceof Error ? error.message : String(error))
+    }
     
     // Fetch all our data and save it to KV
     let data: any = new Fuel;
@@ -471,4 +487,45 @@ router.get('/api/cache/stats', async (_request, env, _context) => {
 export default {
     fetch: router.fetch,
     scheduled: doSchedule,
+    email: async (message, env, ctx) => {
+        try {
+            const extracted = await extractEmailUrls(message)
+            const fallbackId = crypto.randomUUID()
+            const r2Key = buildEmailR2Key(extracted, fallbackId)
+            ctx.waitUntil(Promise.all([
+                storeEmailBody(env, extracted, r2Key),
+                storeEmailUrls(env, extracted, r2Key)
+            ]))
+            if (extracted.fuelFinderCsvUrl) {
+                const csvUrl = extracted.fuelFinderCsvUrl
+                const csvR2Key = buildFuelFinderCsvR2Key(extracted.messageId || fallbackId)
+                ctx.waitUntil((async () => {
+                    const download = await downloadFuelFinderCsv(
+                        env,
+                        csvUrl,
+                        csvR2Key
+                    )
+                    await env.KV.put('fuel-finder-csv:last', JSON.stringify({
+                        ...download,
+                        capturedAt: new Date().toISOString()
+                    }))
+                    console.log('Fuel Finder CSV downloaded', download)
+                })())
+            }
+            console.log('Fuel Finder email received', {
+                from: extracted.from,
+                to: extracted.to,
+                subject: extracted.subject,
+                messageId: extracted.messageId,
+                rawSize: extracted.rawSize,
+                urlCount: extracted.urls.length,
+                urls: extracted.urls,
+                fuelFinderCsvUrl: extracted.fuelFinderCsvUrl,
+                preview: extracted.preview,
+                r2Key
+            })
+        } catch (error) {
+            console.error('Fuel Finder email processing failed:', error)
+        }
+    }
 }

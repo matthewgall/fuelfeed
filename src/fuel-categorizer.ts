@@ -26,7 +26,7 @@ export class FuelCategorizer {
         {
             name: 'diesel',
             displayName: 'Diesel',
-            types: ['B7', 'diesel', 'gasoil', 'regular diesel'],
+            types: ['B7', 'B7P', 'B7S', 'B10', 'HVO', 'diesel', 'gasoil', 'regular diesel'],
             icon: EmojiUtils.getEmoji('truck')
         },
         {
