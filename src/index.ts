@@ -484,6 +484,15 @@ router.get('/api/cache/stats', async (_request, env, _context) => {
     }), responseData);
 })
 
+router.get('/api/data.stats', async (_request, env, _context) => {
+    const fuelFinderLast = await env.KV.get('fuel-finder:last', 'json') as any;
+    if (!fuelFinderLast?.stats) {
+        return new Response(JSON.stringify({ error: 'Fuel Finder stats not available' }), { ...responseData, status: 404 });
+    }
+
+    return new Response(JSON.stringify({ stats: fuelFinderLast.stats }), responseData);
+})
+
 
 export default {
     fetch: router.fetch,
