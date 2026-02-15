@@ -22,6 +22,25 @@ export interface FuelPriceAnalysis {
     premium?: PriceThresholds;
 }
 
+export interface FuelPriceExtreme {
+    station_id: string;
+    brand: string;
+    postcode: string;
+    address: string;
+    price: number;
+    fuelType: string;
+    originalType: string;
+    updated?: string;
+}
+
+export interface FuelPriceExtremes {
+    [fuelType: string]: {
+        min: FuelPriceExtreme | null;
+        max: FuelPriceExtreme | null;
+        sampleSize: number;
+    };
+}
+
 export class DynamicPricing {
 
     /**
@@ -45,6 +64,58 @@ export class DynamicPricing {
         }
 
         return analysis;
+    }
+
+    /**
+     * Calculate cheapest and most expensive station per fuel category
+     */
+    static calculateExtremes(fuelData: any): FuelPriceExtremes {
+        const extremes: FuelPriceExtremes = {};
+
+        for (const [brandKey, brandStations] of Object.entries(fuelData)) {
+            for (const [siteId, station] of Object.entries(brandStations as any)) {
+                const stationData = station as any;
+                if (!stationData.prices) continue;
+
+                for (const [fuelName, price] of Object.entries(stationData.prices)) {
+                    if (typeof price !== 'number') continue;
+
+                    const priceInPounds = price > DYNAMIC_PRICING.PENCE_TO_POUNDS_THRESHOLD ? price / 100 : price;
+                    if (priceInPounds < DYNAMIC_PRICING.MIN_PRICE || priceInPounds > DYNAMIC_PRICING.MAX_PRICE) continue;
+
+                    const category = FuelCategorizer.categorizeFuelType(fuelName);
+                    if (!category) continue;
+
+                    if (!extremes[category.name]) {
+                        extremes[category.name] = { min: null, max: null, sampleSize: 0 };
+                    }
+
+                    const entry = extremes[category.name];
+                    entry.sampleSize += 1;
+
+                    const stationInfo: FuelPriceExtreme = {
+                        station_id: `${brandKey}-${siteId}`,
+                        brand: stationData.address?.brand || String(brandKey),
+                        postcode: stationData.address?.postcode || '',
+                        address: stationData.address?.address || '',
+                        price: priceInPounds,
+                        fuelType: category.name,
+                        originalType: fuelName,
+                        updated: stationData.updated
+                    };
+
+                    if (!entry.min || priceInPounds < entry.min.price) {
+                        entry.min = stationInfo;
+                    }
+
+                    if (!entry.max || priceInPounds > entry.max.price) {
+                        entry.max = stationInfo;
+                    }
+                }
+            }
+        }
+
+        return extremes;
     }
 
     /**

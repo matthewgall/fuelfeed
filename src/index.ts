@@ -75,6 +75,9 @@ async function doSchedule(_event: any, env: any) {
     // Calculate and store dynamic price thresholds for better API performance
     console.log('Calculating dynamic price thresholds...');
     const priceAnalysis = DynamicPricing.analyzePrices(data);
+
+    console.log('Calculating fuel price extremes...');
+    const priceExtremes = DynamicPricing.calculateExtremes(data);
     
     // Store individual threshold values for quick lookup
     for (const [fuelType, thresholds] of Object.entries(priceAnalysis)) {
@@ -82,6 +85,8 @@ async function doSchedule(_event: any, env: any) {
             await env.KV.put(`price-threshold-${fuelType}`, JSON.stringify(thresholds), { expirationTtl: CACHE_TTL.FUEL_DATA });
         }
     }
+
+    await env.KV.put('fueldata-extremes', JSON.stringify(priceExtremes), { expirationTtl: CACHE_TTL.FUEL_DATA });
     
     // Update cache timestamp for smart invalidation
     await env.KV.put('fueldata-updated', Date.now().toString(), { expirationTtl: CACHE_TTL.FUEL_DATA });
@@ -511,16 +516,21 @@ router.get('/api/cache/stats', async (_request, env, _context) => {
     }), responseData);
 })
 
-router.get('/api/data.stats', async (_request, env, _context) => {
+router.get('/api/statistics', async (_request, env, _context) => {
     const fuelFinderLast = await env.KV.get('fuel-finder:last', 'json') as any;
-    if (!fuelFinderLast?.stats) {
-        return new Response(JSON.stringify({ error: 'Fuel Finder stats not available' }), { ...responseData, status: 404 });
-    }
+    const fueldataUpdated = await env.KV.get('fueldata-updated');
+    const thresholds = await getCachedPriceThresholds(env);
+    const extremes = await env.KV.get('fueldata-extremes', 'json');
 
     return new Response(JSON.stringify({
-        stats: fuelFinderLast.stats,
-        capturedAt: fuelFinderLast.capturedAt ?? null,
-        lastUpdated: fuelFinderLast.lastUpdated ?? null
+        fuelFinder: fuelFinderLast ? {
+            stats: fuelFinderLast.stats ?? null,
+            capturedAt: fuelFinderLast.capturedAt ?? null,
+            lastUpdated: fuelFinderLast.lastUpdated ?? null
+        } : null,
+        fueldataUpdated: fueldataUpdated ?? null,
+        thresholds,
+        ...(extremes ? { extremes } : {})
     }), responseData);
 })
 
