@@ -54,32 +54,31 @@ async function getCachedPriceThresholds(env: any) {
 }
 
 async function doSchedule(_event: any, env: any) {
-    // Smart cache invalidation before update
-    const invalidationResult = await CacheInvalidator.smartInvalidation(env, 'scheduled-update');
-    console.log(`Cache invalidation: ${invalidationResult.reason} (${invalidationResult.deleted} entries)`);
-
     try {
         const fuelFinderResult = await updateFuelFinderSnapshot(env)
         console.log('Fuel Finder snapshot updated', fuelFinderResult)
     } catch (error) {
         console.log('Fuel Finder snapshot update failed:', error instanceof Error ? error.message : String(error))
     }
-    
-    // Fetch all our data and save it to KV
+
+    await refreshFuelData(env, 'scheduled-update')
+}
+
+async function refreshFuelData(env: any, reason: string) {
+    const invalidationResult = await CacheInvalidator.smartInvalidation(env, reason);
+    console.log(`Cache invalidation: ${invalidationResult.reason} (${invalidationResult.deleted} entries)`);
+
     let data: any = new Fuel;
     data = await data.getData(env);
 
-    // Store main data
     await env.KV.put('fueldata', JSON.stringify(data))
-    
-    // Calculate and store dynamic price thresholds for better API performance
+
     console.log('Calculating dynamic price thresholds...');
     const priceAnalysis = DynamicPricing.analyzePrices(data);
 
     console.log('Calculating fuel price extremes...');
     const priceExtremes = DynamicPricing.calculateExtremes(data);
-    
-    // Store individual threshold values for quick lookup
+
     for (const [fuelType, thresholds] of Object.entries(priceAnalysis)) {
         if (thresholds) {
             await env.KV.put(`price-threshold-${fuelType}`, JSON.stringify(thresholds), { expirationTtl: CACHE_TTL.FUEL_DATA });
@@ -87,19 +86,14 @@ async function doSchedule(_event: any, env: any) {
     }
 
     await env.KV.put('fueldata-extremes', JSON.stringify(priceExtremes), { expirationTtl: CACHE_TTL.FUEL_DATA });
-    
-    // Update cache timestamp for smart invalidation
     await env.KV.put('fueldata-updated', Date.now().toString(), { expirationTtl: CACHE_TTL.FUEL_DATA });
-    
-    // Warm cache for popular regions using pre-calculated analysis
+
     const cacheManager = new CacheManager();
     await cacheManager.warmPopularRegions(env, data, priceAnalysis);
-    
-    // Clean up stale cache entries
+
     const cleanupResult = await CacheInvalidator.smartInvalidation(env, 'cleanup');
     console.log(`Cache cleanup: ${cleanupResult.reason} (${cleanupResult.deleted} entries)`);
-    
-    console.log('Scheduled update completed with cache warming and cleanup');
+    console.log('Fuel data refresh completed');
 }
 
 async function doEmail(message: ForwardableEmailMessage, env: any, ctx: ExecutionContext) {
@@ -115,6 +109,7 @@ async function doEmail(message: ForwardableEmailMessage, env: any, ctx: Executio
             try {
                 const result = await updateFuelFinderSnapshot(env)
                 console.log('Fuel Finder snapshot updated from email', result)
+                await refreshFuelData(env, 'email-update')
             } catch (error) {
                 console.log(
                     'Fuel Finder snapshot update from email failed:',
