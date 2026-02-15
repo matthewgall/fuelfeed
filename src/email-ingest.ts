@@ -35,7 +35,7 @@ export function buildEmailR2Key(extracted: ExtractedEmailDetails, fallbackId?: s
     return `email/${timestamp}-${safeId}.eml`;
 }
 
-export async function extractEmailUrls(message: ForwardableEmailMessage): Promise<ExtractedEmailDetails> {
+export async function extractEmailDetails(message: ForwardableEmailMessage): Promise<ExtractedEmailDetails> {
     const rawText = await new Response(message.raw).text();
 
     return {
