@@ -10,14 +10,7 @@ import { GeographicFilter } from './geographic-filter'
 import { DynamicPricing } from './dynamic-pricing'
 import { CACHE_TTL, STATION_LIMITS, PRICE_THRESHOLDS } from './constants'
 import { updateFuelFinderSnapshot } from './fuel-finder'
-import {
-    buildEmailR2Key,
-    buildFuelFinderCsvR2Key,
-    downloadFuelFinderCsv,
-    extractEmailUrls,
-    storeEmailBody,
-    storeEmailUrls
-} from './email-ingest'
+import { buildEmailR2Key, extractEmailUrls, storeEmailBody, storeEmailDetails } from './email-ingest'
 
 const router = AutoRouter()
 const responseData = {
@@ -490,7 +483,36 @@ router.get('/api/data.stats', async (_request, env, _context) => {
         return new Response(JSON.stringify({ error: 'Fuel Finder stats not available' }), { ...responseData, status: 404 });
     }
 
-    return new Response(JSON.stringify({ stats: fuelFinderLast.stats }), responseData);
+    return new Response(JSON.stringify({
+        stats: fuelFinderLast.stats,
+        capturedAt: fuelFinderLast.capturedAt ?? null,
+        lastUpdated: fuelFinderLast.lastUpdated ?? null
+    }), responseData);
+})
+
+router.get('/api/fuel-finder/refresh', async (request, env, _context) => {
+    const token = env.FUEL_FINDER_REFRESH_TOKEN;
+    if (token) {
+        const supplied = request.headers.get('x-refresh-token') || new URL(request.url).searchParams.get('token');
+        if (!supplied || supplied !== token) {
+            return new Response(JSON.stringify({ error: 'Unauthorized' }), { ...responseData, status: 401 });
+        }
+    }
+
+    try {
+        const result = await updateFuelFinderSnapshot(env);
+        const fuelFinderLast = await env.KV.get('fuel-finder:last', 'json') as any;
+        return new Response(JSON.stringify({
+            ok: true,
+            ...result,
+            stats: fuelFinderLast?.stats ?? null
+        }), responseData);
+    } catch (error) {
+        return new Response(JSON.stringify({
+            ok: false,
+            error: error instanceof Error ? error.message : String(error)
+        }), { ...responseData, status: 500 });
+    }
 })
 
 
@@ -504,33 +526,25 @@ export default {
             const r2Key = buildEmailR2Key(extracted, fallbackId)
             ctx.waitUntil(Promise.all([
                 storeEmailBody(env, extracted, r2Key),
-                storeEmailUrls(env, extracted, r2Key)
+                storeEmailDetails(env, extracted, r2Key)
             ]))
-            if (extracted.fuelFinderCsvUrl) {
-                const csvUrl = extracted.fuelFinderCsvUrl
-                const csvR2Key = buildFuelFinderCsvR2Key(extracted.messageId || fallbackId)
-                ctx.waitUntil((async () => {
-                    const download = await downloadFuelFinderCsv(
-                        env,
-                        csvUrl,
-                        csvR2Key
+            ctx.waitUntil((async () => {
+                try {
+                    const result = await updateFuelFinderSnapshot(env)
+                    console.log('Fuel Finder snapshot updated from email', result)
+                } catch (error) {
+                    console.log(
+                        'Fuel Finder snapshot update from email failed:',
+                        error instanceof Error ? error.message : String(error)
                     )
-                    await env.KV.put('fuel-finder-csv:last', JSON.stringify({
-                        ...download,
-                        capturedAt: new Date().toISOString()
-                    }))
-                    console.log('Fuel Finder CSV downloaded', download)
-                })())
-            }
+                }
+            })())
             console.log('Fuel Finder email received', {
                 from: extracted.from,
                 to: extracted.to,
                 subject: extracted.subject,
                 messageId: extracted.messageId,
                 rawSize: extracted.rawSize,
-                urlCount: extracted.urls.length,
-                urls: extracted.urls,
-                fuelFinderCsvUrl: extracted.fuelFinderCsvUrl,
                 preview: extracted.preview,
                 r2Key
             })
