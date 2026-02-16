@@ -1099,6 +1099,7 @@ map.on('load', function () {
             ],
             'circle-stroke-color': [
                 'case',
+                ['get', 'data_issue'], '#b00020',
                 ['get', 'is_best_price'], '#FF6B35',
                 '#ffffff'
             ],

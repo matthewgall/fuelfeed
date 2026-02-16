@@ -81,9 +81,16 @@ export const DYNAMIC_PRICING = {
     PENCE_TO_POUNDS_THRESHOLD: 10 // Prices above this are assumed to be in pence
 } as const;
 
+// Data quality bounds for plausibility checks (in pounds)
+export const DATA_QUALITY_BOUNDS = {
+    DEFAULT_MIN: 1.0,
+    DEFAULT_MAX: 3.0,
+    LPG_MIN: 0.3,
+    LPG_MAX: 2.0
+} as const;
+
 // Static price fallback thresholds
 export const STATIC_PRICE_FALLBACK = {
     LOW: 1.40,                    // Static fallback for low prices
     MEDIUM: 1.50                  // Static fallback for medium prices
 } as const;
-

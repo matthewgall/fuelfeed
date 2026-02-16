@@ -188,13 +188,7 @@ export class FuelCategorizer {
             contextInfo = ' (Autogas)';
         }
         
-        // Show if multiple prices were averaged
-        if (allPrices && allPrices.length > 1) {
-            const avgPrice = allPrices.reduce((sum, p) => sum + p, 0) / allPrices.length;
-            if (Math.abs(avgPrice - price) > 0.005) { // Show average if significantly different
-                contextInfo += ` (avg £${avgPrice.toFixed(2)})`;
-            }
-        }
+        // Intentionally avoid showing average price in label
         
         return `${icon} ${displayName}${contextInfo} ${priceDisplay}`;
     }

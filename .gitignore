@@ -4,3 +4,6 @@ node_modules
 
 # application specific
 data
+
+# data
+data.csv

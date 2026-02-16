@@ -38,6 +38,7 @@ export interface FuelPriceExtremes {
         min: FuelPriceExtreme | null;
         max: FuelPriceExtreme | null;
         sampleSize: number;
+        filteredSampleSize: number;
     };
 }
 
@@ -71,6 +72,7 @@ export class DynamicPricing {
      */
     static calculateExtremes(fuelData: any): FuelPriceExtremes {
         const extremes: FuelPriceExtremes = {};
+        const entriesByFuelType: Record<string, FuelPriceExtreme[]> = {};
 
         for (const [brandKey, brandStations] of Object.entries(fuelData)) {
             for (const [siteId, station] of Object.entries(brandStations as any)) {
@@ -86,13 +88,6 @@ export class DynamicPricing {
                     const category = FuelCategorizer.categorizeFuelType(fuelName);
                     if (!category) continue;
 
-                    if (!extremes[category.name]) {
-                        extremes[category.name] = { min: null, max: null, sampleSize: 0 };
-                    }
-
-                    const entry = extremes[category.name];
-                    entry.sampleSize += 1;
-
                     const stationInfo: FuelPriceExtreme = {
                         station_id: `${brandKey}-${siteId}`,
                         brand: stationData.address?.brand || String(brandKey),
@@ -104,15 +99,31 @@ export class DynamicPricing {
                         updated: stationData.updated
                     };
 
-                    if (!entry.min || priceInPounds < entry.min.price) {
-                        entry.min = stationInfo;
+                    if (!entriesByFuelType[category.name]) {
+                        entriesByFuelType[category.name] = [];
                     }
 
-                    if (!entry.max || priceInPounds > entry.max.price) {
-                        entry.max = stationInfo;
-                    }
+                    entriesByFuelType[category.name].push(stationInfo);
                 }
             }
+        }
+
+        for (const [fuelType, entries] of Object.entries(entriesByFuelType)) {
+            if (entries.length === 0) {
+                extremes[fuelType] = { min: null, max: null, sampleSize: 0, filteredSampleSize: 0 };
+                continue;
+            }
+
+            const sorted = [...entries].sort((a, b) => a.price - b.price);
+            const removeCount = Math.floor(sorted.length * DYNAMIC_PRICING.OUTLIER_PERCENTILE);
+            const trimmed = removeCount > 0 ? sorted.slice(removeCount, -removeCount || undefined) : sorted;
+
+            extremes[fuelType] = {
+                min: trimmed[0] ?? null,
+                max: trimmed[trimmed.length - 1] ?? null,
+                sampleSize: entries.length,
+                filteredSampleSize: trimmed.length
+            };
         }
 
         return extremes;

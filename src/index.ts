@@ -281,6 +281,7 @@ router.get('/api/data.mapbox', async (request, env, _context) => {
                 lowestPrice,
                 averagePrice,
                 fuelPrices,
+                dataIssue: Boolean(stn.data_issue),
                 brandKey: brand, // Store original brand key
                 stationKey: s    // Store original station key
             });
@@ -397,7 +398,8 @@ router.get('/api/data.mapbox', async (request, env, _context) => {
                 "is_best_price": isBestPrice,
                 "has_prices": station.prices.length > 0,
                 "fuel_prices": station.fuelPrices, // Add structured price data for analytics
-                "grouped_fuels": station.groupedFuels // Add categorized fuel data
+                "grouped_fuels": station.groupedFuels, // Add categorized fuel data
+                "data_issue": station.dataIssue
             }
         });
     }
@@ -482,7 +484,9 @@ router.get('/api/station/:stationId', async (request, env, _context) => {
         priceDescription,
         false, // Individual station requests don't calculate best price
         station.updated,
-        priceAnalysis
+        priceAnalysis,
+        station.data_issue,
+        station.data_issue_fuels
     );
     
     // Generate structured price data
@@ -496,7 +500,9 @@ router.get('/api/station/:stationId', async (request, env, _context) => {
         fuel_prices: structuredPrices,
         lowest_price: lowestPrice,
         updated: station.updated,
-        price_count: prices.length
+        price_count: prices.length,
+        data_issue: station.data_issue || false,
+        data_issue_fuels: station.data_issue_fuels || []
     };
     
     return new Response(JSON.stringify(response), responseData);

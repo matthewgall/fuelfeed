@@ -8,8 +8,20 @@ export class PopupGenerator {
     /**
      * Generate complete popup HTML for a fuel station
      */
-    static generatePopupHTML(brand: string, location: string, priceDescription: string, isBestPrice: boolean = false, updatedTime?: string, priceAnalysis?: FuelPriceAnalysis): string {
+    static generatePopupHTML(
+        brand: string,
+        location: string,
+        priceDescription: string,
+        isBestPrice: boolean = false,
+        updatedTime?: string,
+        priceAnalysis?: FuelPriceAnalysis,
+        dataIssue: boolean = false,
+        dataIssueFuels: Array<{ fuelType: string; price: number }> = []
+    ): string {
         const priceItems = this.parsePriceDescription(priceDescription, priceAnalysis);
+        const issueText = dataIssueFuels.length > 0
+            ? `Potential data issue: ${dataIssueFuels.map(item => `${item.fuelType.toUpperCase()} £${item.price.toFixed(2)}`).join(', ')}`
+            : 'Potential data issue detected with this station.';
         
         return `
             <div style="
@@ -49,6 +61,20 @@ export class PopupGenerator {
                     <div style="margin-top: 8px;">
                         ${priceItems.length > 0 ? priceItems.join('') : '<div style="font-size: 12px; color: #999; font-style: italic;">No price data available</div>'}
                     </div>
+                    ${dataIssue ? `
+                    <div style="
+                        margin-top: 10px;
+                        padding: 8px 10px;
+                        border-radius: 6px;
+                        background: #fff3f3;
+                        color: #b00020;
+                        font-size: 11px;
+                        font-weight: 600;
+                        line-height: 1.4;
+                    ">
+                        ⚠️ ${issueText}
+                    </div>
+                    ` : ''}
                     ${updatedTime ? `
                     <div style="
                         margin-top: 12px; 

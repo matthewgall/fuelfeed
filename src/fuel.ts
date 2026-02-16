@@ -1,6 +1,8 @@
 /// <reference path="../worker-configuration.d.ts" />
 import Feeds from '../feeds.json'
 import { PriceNormalizer } from './price-normalizer'
+import { FuelCategorizer } from './fuel-categorizer'
+import { DATA_QUALITY_BOUNDS, PRICE_THRESHOLDS } from './constants'
 
 export default class Fuel {
     async getData(env) {
@@ -24,6 +26,7 @@ export default class Fuel {
                     }
 
                     const normalizedPrices = PriceNormalizer.normalizePrices(stn.prices, stn.brand)
+                    const dataIssues = detectPriceIssues(normalizedPrices)
                     if (Object.keys(normalizedPrices).length > 0) {
                         data[feedKey][stn.site_id] = {
                             'address': {
@@ -33,7 +36,9 @@ export default class Fuel {
                             },
                             'location': stn.location || { latitude: 0, longitude: 0 },
                             'prices': normalizedPrices,
-                            'updated': feedData.last_updated || new Date().toISOString()
+                            'updated': feedData.last_updated || new Date().toISOString(),
+                            'data_issue': dataIssues.hasIssue,
+                            'data_issue_fuels': dataIssues.fuels
                         }
                     } else {
                         console.log(`No valid prices for station ${stn.site_id} in ${feedKey}`)
@@ -102,4 +107,24 @@ export default class Fuel {
         }
         return data
     }
+}
+
+function detectPriceIssues(prices: Record<string, number>) {
+    const fuels: Array<{ fuelType: string; price: number }> = []
+
+    for (const [fuelType, price] of Object.entries(prices)) {
+        if (typeof price !== 'number') continue
+
+        const priceInPounds = price > PRICE_THRESHOLDS.PENCE_CONVERSION ? price / 100 : price
+        const category = FuelCategorizer.categorizeFuelType(fuelType)
+        const bounds = category?.name === 'lpg'
+            ? { min: DATA_QUALITY_BOUNDS.LPG_MIN, max: DATA_QUALITY_BOUNDS.LPG_MAX }
+            : { min: DATA_QUALITY_BOUNDS.DEFAULT_MIN, max: DATA_QUALITY_BOUNDS.DEFAULT_MAX }
+
+        if (priceInPounds < bounds.min || priceInPounds > bounds.max) {
+            fuels.push({ fuelType, price: priceInPounds })
+        }
+    }
+
+    return { hasIssue: fuels.length > 0, fuels }
 }
