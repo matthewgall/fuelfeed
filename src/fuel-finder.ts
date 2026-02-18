@@ -105,6 +105,33 @@ function parseTimestamp(value: unknown): { iso: string; date: Date | null } {
     return { iso: parsed.toISOString(), date: parsed };
 }
 
+function selectLatestTimestamp(
+    record: Record<string, string>,
+    fields: string[]
+): { iso: string; date: Date | null } {
+    let selected: { iso: string; date: Date | null } = { iso: '', date: null };
+    let hasValue = false;
+
+    for (const field of fields) {
+        const parsed = parseTimestamp(record[field]);
+        if (!parsed.iso) continue;
+
+        if (!hasValue) {
+            selected = parsed;
+            hasValue = true;
+            continue;
+        }
+
+        if (parsed.date && (!selected.date || parsed.date > selected.date)) {
+            selected = parsed;
+        } else if (!selected.date && parsed.date) {
+            selected = parsed;
+        }
+    }
+
+    return selected;
+}
+
 function normalizeBrand(value: unknown): string {
     const cleaned = cleanValue(value);
     if (!cleaned) return '';
@@ -215,7 +242,19 @@ function parseFuelFinderCsvText(csvText: string): FuelFinderParseResult {
             || 'Station';
 
         const postcode = cleanValue(record['forecourts.location.postcode']);
-        const updated = parseTimestamp(record['latest_update_timestamp']);
+        const priceChangeTimestamp = selectLatestTimestamp(record, [
+            'forecourts.price_change_effective_timestamp.E5',
+            'forecourts.price_change_effective_timestamp.E10',
+            'forecourts.price_change_effective_timestamp.B7P',
+            'forecourts.price_change_effective_timestamp.B7S',
+            'forecourts.price_change_effective_timestamp.B10',
+            'forecourts.price_change_effective_timestamp.HVO'
+        ]);
+        const forecourtTimestamp = selectLatestTimestamp(record, [
+            'forecourt_update_timestamp',
+            'latest_update_timestamp'
+        ]);
+        const updated = priceChangeTimestamp.iso ? priceChangeTimestamp : forecourtTimestamp;
         if (updated.date && (!latestDate || updated.date > latestDate)) {
             latestDate = updated.date;
         }
