@@ -90,6 +90,8 @@ FuelFeed is built on a modern serverless architecture:
 
 FuelFeed aggregates data from major UK fuel retailers:
 
+Note: Fuel Finder API/CSV changes are tracked in the official release notes: https://www.developer.fuel-finder.service.gov.uk/release-notes
+
 | Retailer | Coverage | Update Frequency |
 |----------|----------|------------------|
 | ASDA | Nationwide | Hourly |
