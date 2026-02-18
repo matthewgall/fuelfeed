@@ -1,4 +1,5 @@
 const FUEL_FINDER_CSV_URL = 'https://www.fuel-finder.service.gov.uk/internal/v1.0.2/csv/get-latest-fuel-prices-csv';
+const FUEL_FINDER_ARCHIVE_URL = 'https://raw.githubusercontent.com/matthewgall/fuelfinder-archive/refs/heads/main/data.csv';
 const FUEL_FINDER_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'Accept': 'text/csv,application/octet-stream;q=0.9,*/*;q=0.8',
@@ -270,10 +271,29 @@ async function fetchFuelFinderCsv(url: string, maxRedirects: number = 3) {
 }
 
 export async function updateFuelFinderSnapshot(env: any) {
-    const { response, finalUrl } = await fetchFuelFinderCsv(FUEL_FINDER_CSV_URL);
+    let response: Response | undefined;
+    let finalUrl = FUEL_FINDER_CSV_URL;
+    let usedFallback = false;
 
-    if (!response.ok) {
-        throw new Error(`Fuel Finder CSV download failed with status ${response.status}`);
+    try {
+        const result = await fetchFuelFinderCsv(FUEL_FINDER_CSV_URL);
+        response = result.response;
+        finalUrl = result.finalUrl;
+        if (!response.ok) {
+            throw new Error(`Fuel Finder CSV download failed with status ${response.status}`);
+        }
+    } catch (error) {
+        usedFallback = true;
+        const fallbackResponse = await fetch(FUEL_FINDER_ARCHIVE_URL, {
+            headers: FUEL_FINDER_HEADERS
+        });
+        if (!fallbackResponse.ok) {
+            throw new Error(
+                `Fuel Finder CSV fallback failed with status ${fallbackResponse.status}`
+            );
+        }
+        response = fallbackResponse;
+        finalUrl = FUEL_FINDER_ARCHIVE_URL;
     }
 
     const csvText = await response.text();
@@ -290,7 +310,8 @@ export async function updateFuelFinderSnapshot(env: any) {
         lastUpdated: data.last_updated,
         capturedAt: new Date().toISOString(),
         sourceUrl: FUEL_FINDER_CSV_URL,
-        finalUrl
+        finalUrl,
+        usedFallback
     }));
 
     return { stats, lastUpdated: data.last_updated };
