@@ -13,14 +13,14 @@
     "typecheck:frontend": "tsc --noEmit -p src/frontend/tsconfig.json"
   },
   "devDependencies": {
-    "@types/node": "^25.3.0",
+    "@types/node": "^25.3.3",
     "@types/validator": "^13.15.10",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
-    "wrangler": "^4.67.0"
+    "wrangler": "^4.69.0"
   },
   "dependencies": {
-    "axios": "^1.13.5",
-    "itty-router": "^5.0.22"
+    "axios": "^1.13.6",
+    "itty-router": "^5.0.23"
   }
 }
