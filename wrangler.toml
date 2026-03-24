@@ -33,4 +33,4 @@ binding = 'R2' # <~ valid JavaScript variable name
 bucket_name = 'fuelfeed'
 
 [triggers]
-crons = [ "30 * * * *" ]
+crons = [ "*/10 * * * *" ]

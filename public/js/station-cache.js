@@ -32,7 +32,7 @@ class StationCache {
         if (configTTL && !isNaN(parseInt(configTTL))) {
             return parseInt(configTTL) * 60 * 1000; // convert minutes to milliseconds
         }
-        return 60 * 60 * 1000; // default: 1 hour in milliseconds
+        return 10 * 60 * 1000; // default: 10 minutes in milliseconds
     }
     
     // Set cache TTL in minutes

@@ -10,7 +10,6 @@ import { GeographicFilter } from './geographic-filter'
 import { DynamicPricing } from './dynamic-pricing'
 import { CACHE_TTL, STATION_LIMITS, PRICE_THRESHOLDS } from './constants'
 import { updateFuelFinderSnapshot } from './fuel-finder'
-import { buildEmailR2Key, extractEmailDetails, storeEmailBody, storeEmailDetails } from './email-ingest'
 
 const router = AutoRouter()
 const responseData = {
@@ -96,40 +95,6 @@ async function refreshFuelData(env: any, reason: string) {
     console.log('Fuel data refresh completed');
 }
 
-async function doEmail(message: ForwardableEmailMessage, env: any, ctx: ExecutionContext) {
-    try {
-        const extracted = await extractEmailDetails(message)
-        const fallbackId = crypto.randomUUID()
-        const r2Key = buildEmailR2Key(extracted, fallbackId)
-        ctx.waitUntil(Promise.all([
-            storeEmailBody(env, extracted, r2Key),
-            storeEmailDetails(env, extracted, r2Key)
-        ]))
-        ctx.waitUntil((async () => {
-            try {
-                const result = await updateFuelFinderSnapshot(env)
-                console.log('Fuel Finder snapshot updated from email', result)
-                await refreshFuelData(env, 'email-update')
-            } catch (error) {
-                console.log(
-                    'Fuel Finder snapshot update from email failed:',
-                    error instanceof Error ? error.message : String(error)
-                )
-            }
-        })())
-        console.log('Fuel Finder email received', {
-            from: extracted.from,
-            to: extracted.to,
-            subject: extracted.subject,
-            messageId: extracted.messageId,
-            rawSize: extracted.rawSize,
-            preview: extracted.preview,
-            r2Key
-        })
-    } catch (error) {
-        console.error('Fuel Finder email processing failed:', error)
-    }
-}
 
 router.get('/api/data.json', async (request, env, _context) => {
     const CACHE_TTL = getCacheTTL(env);
@@ -563,6 +528,5 @@ router.get('/api/fuel-finder/refresh', async (request, env, _context) => {
 
 export default {
     fetch: router.fetch,
-    scheduled: doSchedule,
-    email: doEmail
+    scheduled: doSchedule
 }
