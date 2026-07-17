@@ -10,7 +10,8 @@ assets = { directory = "./public/" }
 
 # Routing
 routes = [
-  { pattern = "*fuelaround.me/*", zone_name="fuelaround.me" }
+  { pattern = "fuelaround.me/*", zone_name="fuelaround.me" },
+  { pattern = "www.fuelaround.me/*", zone_name="fuelaround.me" },
 ]
 
 # Workers Logs
